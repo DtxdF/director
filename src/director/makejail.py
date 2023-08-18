@@ -177,7 +177,7 @@ def stop(jail, *, logdir):
 
     return 0
 
-def convert(file, *, projectdir=None):
+def convert(file, *, projectdir=None, check_volume=True):
     schema_file = director.schema.Schema(file)
 
     global_options = __get_options(schema_file.options)
@@ -221,7 +221,13 @@ def convert(file, *, projectdir=None):
         makejail_file = ["-f", service_info.get("makejail")]
 
         local_options = __get_options(service_info.get("options", []))
-        local_options.extend(__volumes2options(service_info.get("volumes", []), schema_file.volumes))
+        local_options.extend(
+            __volumes2options(
+                service_info.get("volumes", []),
+                schema_file.volumes,
+                check_volume
+            )
+        )
         
         all_options = global_options + local_options
 
@@ -280,7 +286,7 @@ def get_appjail_script():
 
     return appjail
 
-def __volumes2options(jail_volumes, volumes):
+def __volumes2options(jail_volumes, volumes, check_volume=True):
     parameters = []
 
     for volume_dict in jail_volumes:
@@ -297,7 +303,7 @@ def __volumes2options(jail_volumes, volumes):
         pass_ = volume_info.get("pass")
 
         if type_ == "nullfs":
-            if not os.path.isdir(device):
+            if check_volume and not os.path.isdir(device):
                 raise DeviceDirectoryNotFound(f"{device}: not a directory or does not exist.")
 
             device = os.path.realpath(device)
