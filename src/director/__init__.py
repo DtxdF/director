@@ -117,7 +117,7 @@ def up(file, project):
         # Director file.
         os.chdir(os.path.join(".", os.path.dirname(file)))
 
-        if os.path.isdir(projectdir):
+        if os.path.isfile(director_file):
             old = director.makejail.convert(director_file,
                                             projectdir=projectdir,
                                             check_volume=False)
