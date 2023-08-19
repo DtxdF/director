@@ -132,7 +132,18 @@ def up(file, project):
 
                 director.makejail.destroy(name, logdir=f"{logsdir}/{service}/jails/{name}")
 
-            tocreate = (x for x in new if x not in old)
+            tocreate = []
+
+            for command in new:
+                service = command["service"]
+                name = command["name"]
+                servicedir = f"{projectdir}/{service}"
+
+                if command not in old \
+                   or director.makejail.check(name) != 0 \
+                   or director.makejail.has_failed(servicedir):
+                       tocreate.append(command)
+
         else:
             tocreate = director.makejail.convert(file,
                                                  projectdir=projectdir)
@@ -152,22 +163,38 @@ def up(file, project):
         show_id = False
 
         for command in tocreate:
+            service = command["service"]
+            servicedir = f"{projectdir}/{service}"
+
             show_id = True
 
             returncode = director.makejail.run(command,
                                                logdir=logsdir)
 
             if returncode != 0:
+                director.makejail.set_failed(servicedir)
+
                 return returncode
+            else:
+                director.makejail.unset_failed(servicedir)
 
         for command in new:
             service = command["service"]
             name = command["name"]
+            servicedir = f"{projectdir}/{service}"
+            logdir=f"{logsdir}/{service}/jails/{name}"
 
             if director.makejail.status(name) == 1:
                 show_id = True
 
-                director.makejail.start(name, logdir=f"{logsdir}/{service}/jails/{name}")
+                returncode = director.makejail.start(name, logdir=logdir)
+
+                if returncode != 0:
+                    director.makejail.set_failed(servicedir)
+
+                    return returncode
+                else:
+                    director.makejail.unset_failed(servicedir)
 
         if show_id:
             print("Finished:", project)

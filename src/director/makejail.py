@@ -43,6 +43,24 @@ class DeviceDirectoryNotFound(Exception):
 class AppJailScriptNotFound(Exception):
     """Exception thrown when AppJail cannot be found."""
 
+def unset_failed(servicedir):
+    fail_file = f"{servicedir}/fail"
+
+    if os.path.isfile(fail_file):
+        os.remove(fail_file)
+
+def set_failed(servicedir):
+    with open(f"{servicedir}/fail", "w") as fd:
+        pass
+
+def has_failed(servicedir):
+    return os.path.isfile(f"{servicedir}/fail")
+
+def check(jail):
+    return subprocess.call([get_appjail_script(), "jail", "get", "--", jail],
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+
 def status(jail):
     return subprocess.call([get_appjail_script(), "status", "-q", "--", jail],
                            stdout=subprocess.DEVNULL,
