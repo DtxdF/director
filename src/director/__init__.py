@@ -27,6 +27,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import atexit
 import os
 import pathlib
 import shutil
@@ -110,6 +111,11 @@ def up(file, project):
     print("Starting Director;", f"project ID: {project};", f"logs: {logsdir};")
 
     projectdir = f"{CONFIG.projectsdir}/{project}"
+
+    _check_lock(projectdir)
+    atexit.register(director.makejail.unlock, projectdir)
+    director.makejail.lock(projectdir)
+
     director_file = f"{projectdir}/{DIRECTOR_YML}"
 
     try:
@@ -233,6 +239,10 @@ def down(destroy, project):
     if not os.path.isdir(projectdir):
         print(f"{project}: project not found.", file=sys.stderr)
         return EX_NOINPUT
+
+    _check_lock(projectdir)
+    atexit.register(director.makejail.unlock, projectdir)
+    director.makejail.lock(projectdir)
 
     logsdir = f"{CONFIG.logsdir}/{project}/{LOG_TIME}"
 
@@ -358,6 +368,13 @@ def ls(project):
             print("-", project.name)
 
     return 0
+
+def _check_lock(projectdir):
+    if director.makejail.is_locked(projectdir):
+        print("The project is currently locked. If you are sure that no other " \
+              "instances of Director are running for this project, run " \
+              f"`rm -f \"{projectdir}/lock\"`.", file=sys.stderr)
+        sys.exit(EX_NOPERM)
 
 if __name__ == "__main__":
     cli()
