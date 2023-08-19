@@ -122,7 +122,8 @@ def up(file, project):
         # Director file.
         os.chdir(os.path.join(".", os.path.dirname(file)))
 
-        if os.path.isfile(director_file):
+        if director.makejail.is_done(projectdir) \
+           and os.path.isfile(director_file):
             old = director.makejail.convert(director_file,
                                             projectdir=projectdir,
                                             check_volume=False)
@@ -202,6 +203,8 @@ def up(file, project):
                     director.makejail.unset_failed(servicedir)
 
         if show_id:
+            director.makejail.done(projectdir)
+
             print("Finished:", project)
         else:
             print("Nothing to do.")
@@ -235,7 +238,7 @@ def down(destroy, project):
 
     projectdir = f"{CONFIG.projectsdir}/{project}"
 
-    if not os.path.isdir(projectdir):
+    if not director.makejail.is_done(projectdir):
         print(f"{project}: project not found.", file=sys.stderr)
         return EX_NOINPUT
 
@@ -310,7 +313,7 @@ def ls(project):
 
         projectdir = f"{CONFIG.projectsdir}/{project}"
 
-        if not os.path.isdir(projectdir):
+        if not director.makejail.is_done(projectdir):
             print(f"{project}: project not found.", file=sys.stderr)
             return EX_NOINPUT
 
@@ -359,6 +362,11 @@ def ls(project):
         show_header = True
 
         for project in pathlib.Path(CONFIG.projectsdir).iterdir():
+            projectdir = f"{CONFIG.projectsdir}/{project.name}"
+
+            if not director.makejail.is_done(projectdir):
+                continue
+
             if show_header:
                 print("Projects:")
 

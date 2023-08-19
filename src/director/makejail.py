@@ -43,6 +43,15 @@ class DeviceDirectoryNotFound(Exception):
 class AppJailScriptNotFound(Exception):
     """Exception thrown when AppJail cannot be found."""
 
+def done(projectdir):
+    os.makedirs(projectdir, exist_ok=True)
+
+    with open(f"{projectdir}/done", "w") as fd:
+        pass
+
+def is_done(projectdir):
+    return os.path.isfile(f"{projectdir}/done")
+
 def unlock(projectdir):
     lock_file = f"{projectdir}/lock"
 
