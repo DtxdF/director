@@ -111,14 +111,13 @@ def up(file, project):
     print("Starting Director;", f"project ID: {project};", f"logs: {logsdir};")
 
     projectdir = f"{CONFIG.projectsdir}/{project}"
-
-    _check_lock(projectdir)
-    atexit.register(director.makejail.unlock, projectdir)
-    director.makejail.lock(projectdir)
-
     director_file = f"{projectdir}/{DIRECTOR_YML}"
 
     try:
+        _check_lock(projectdir)
+        atexit.register(director.makejail.unlock, projectdir)
+        director.makejail.lock(projectdir)
+
         # Make sure that any access to any other file will be relative to the
         # Director file.
         os.chdir(os.path.join(".", os.path.dirname(file)))
@@ -240,15 +239,15 @@ def down(destroy, project):
         print(f"{project}: project not found.", file=sys.stderr)
         return EX_NOINPUT
 
-    _check_lock(projectdir)
-    atexit.register(director.makejail.unlock, projectdir)
-    director.makejail.lock(projectdir)
-
     logsdir = f"{CONFIG.logsdir}/{project}/{LOG_TIME}"
 
     print("Starting Director;", f"project ID: {project};", f"logs: {logsdir};")
 
     try:
+        _check_lock(projectdir)
+        atexit.register(director.makejail.unlock, projectdir)
+        director.makejail.lock(projectdir)
+
         director_file = f"{projectdir}/{DIRECTOR_YML}"
 
         parsed = director.schema.Schema(file=director_file)

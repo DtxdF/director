@@ -50,6 +50,8 @@ def unlock(projectdir):
         os.remove(lock_file)
 
 def lock(projectdir):
+    os.makedirs(projectdir, exist_ok=True)
+
     with open(f"{projectdir}/lock", "w") as fd:
         pass
 
@@ -63,6 +65,8 @@ def unset_failed(servicedir):
         os.remove(fail_file)
 
 def set_failed(servicedir):
+    os.makedirs(servicedir, exist_ok=True)
+
     with open(f"{servicedir}/fail", "w") as fd:
         pass
 
