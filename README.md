@@ -113,6 +113,12 @@ AppJail Director has a very simple configuration file (`PREFIX/etc/director.ini`
 
 **description**: Makejail to be executed.
 
+#### reset\_options
+
+**type**: Boolean.
+
+**description**: The global options will be added to the local options. These options only take into account the local options per service.
+
 #### options
 
 It has the same effect as the global `options`, but only for the services in which it appears.

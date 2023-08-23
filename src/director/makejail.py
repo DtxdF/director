@@ -273,7 +273,14 @@ def convert(file, *, projectdir=None, check_volume=True):
             )
         )
         
-        all_options = global_options + local_options
+        reset_options = service_info.get("reset_options", False)
+        
+        all_options = []
+
+        if not reset_options:
+            all_options.extend(global_options)
+
+        all_options.extend(local_options)
 
         environment = __get_environment(service_info.get("environment", []))
 

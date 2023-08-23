@@ -29,7 +29,8 @@
 
 import sys
 import strictyaml
-from strictyaml import (EmptyNone,
+from strictyaml import (Bool,
+                        EmptyNone,
                         Enum,
                         Int,
                         Map,
@@ -47,6 +48,7 @@ __SPEC_SCHEMA__ = Map({
         Optional("priority", default=__DEFAULT_PRIORITY__) : Int(),
         Optional("name") : Regex("^[a-zA-Z0-9_][a-zA-Z0-9_-]*$"),
         Optional("makejail", default="Makejail") : Str(),
+        Optional("reset_options") : Bool(),
         Optional("options") : Seq(MapPattern(Str(), EmptyNone() | Str())),
         Optional("arguments") : Seq(MapPattern(Str(), Str())),
         Optional("environment") : Seq(MapPattern(Str(), EmptyNone() | Str())),
