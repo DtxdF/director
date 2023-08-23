@@ -343,7 +343,7 @@ def ls(project):
                 elif status_code == 1:
                     status = "-"
                 else:
-                    status = "[{status_code}]"
+                    status = f"[{status_code}]"
 
                 print(status, service, f"({name})")
         except Exception as err:
