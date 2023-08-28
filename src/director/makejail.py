@@ -179,10 +179,15 @@ def start(jail, *, logdir):
     return 0
 
 def destroy(jail, *, logdir):
-    returncode = stop(jail, logdir=logdir)
+    returncode = status(jail)
 
-    if returncode != 0:
-        return returncode
+    if returncode == 0:
+        returncode = stop(jail, logdir=logdir)
+
+        if returncode != 0:
+            return returncode
+
+    os.makedirs(logdir, exist_ok=True)
 
     destroy_log = f"{logdir}/destroy.log"
 
