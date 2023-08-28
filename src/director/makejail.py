@@ -37,9 +37,6 @@ import director.schema
 class VolumeNotFound(Exception):
     """Exception thrown when a volume is not defined in volumes."""
 
-class DeviceDirectoryNotFound(Exception):
-    """Exception thrown when a device directory cannot be found."""
-
 class AppJailScriptNotFound(Exception):
     """Exception thrown when AppJail cannot be found."""
 
@@ -360,7 +357,7 @@ def __volumes2options(jail_volumes, volumes, check_volume=True):
 
         if type_ == "nullfs":
             if check_volume and not os.path.isdir(device):
-                raise DeviceDirectoryNotFound(f"{device}: not a directory or does not exist.")
+                os.makedirs(device, exist_ok=True)
 
             device = os.path.realpath(device)
 
