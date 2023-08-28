@@ -270,7 +270,6 @@ def down(destroy, project):
                 do_nothing = False
 
                 director.makejail.destroy(name, logdir=f"{logsdir}/{service}/jails/{name}")
-
             else:
                 status_code = director.makejail.status(name)
 
