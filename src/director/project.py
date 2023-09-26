@@ -213,6 +213,21 @@ class Project(director.keys.Key):
 
         return current_service != next_service
 
+    def differ_options(self):
+        if self.new_project is None or self.new_project:
+            return True
+
+        self.parse_current_spec()
+        self.parse_next_spec()
+
+        current_options = self.current_spec.get("options")
+        next_options = self.next_spec.get("options")
+
+        if current_options is None and next_options is None:
+            return False
+
+        return current_options != next_options
+
     def get_priority(self, service, next=True):
         return self.__get_service(service, next).get("priority", director.default.PRIORITY)
 

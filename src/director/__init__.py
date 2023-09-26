@@ -122,15 +122,17 @@ def up(file, project, overwrite):
     When a Director file specified by --file is read, Director will perform
     some checks to verify if it needs to create or recreate a service.
 
-    The checks that Director performs are: overwrite, differing, failed and mtime.
-    overwrite will recreate the service if the --overwrite option is specified.
-    differing will recreate the service if it differs from the old file that is
-    copied each time the up command is executed. failed will recreate the service
-    if it has previously failed in some way (e.g. creating or starting it). mtime
-    will recreate the service if the Makejail modification time differs from the
-    old one, but if ignore_mtime is specified this does not apply. Of course, if
-    a service does not exist, Director will create it. A service is also created
-    if the project is new (does not exist previously).
+    The checks that Director performs are: overwrite, differing, failed, mtime
+    and differing_options. overwrite will recreate the service if the --overwrite 
+    option is specified. differing will recreate the service if it differs from
+    the old file that is copied each time the up command is executed. failed will
+    recreate the service if it has previously failed in some way (e.g. creating
+    or starting it). mtime will recreate the service if the Makejail modification
+    time differs from the old one, but if ignore_mtime is specified this does not
+    apply. differering_options will recreate the service if the global options
+    change from the previous one, but if reset_options is true, it is ignored.
+    Of course, if a service does not exist, Director will create it. A service is
+    also created if the project is new (does not exist previously).
 
     By default, when a project name is not specified using the --project option,
     Director tries to read the DIRECTOR_PROJECT environment variable and, if it is
@@ -183,7 +185,9 @@ def up(file, project, overwrite):
                         project_obj.differ(service) or \
                         project_obj.has_failed(service) or \
                         (not project_obj.ignore_mtime(service) and \
-                            project_obj.check_makejail_mtime(service)):
+                            project_obj.check_makejail_mtime(service)) or \
+                        (not project_obj.reset_options(service) and \
+                            project_obj.differ_options()):
                     toremove.add(service)
 
                 order.append({
