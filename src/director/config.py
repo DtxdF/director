@@ -31,37 +31,41 @@ import configparser
 import os
 import sys
 
-DEFAULTS = {
+__DEFAULT_CONFIG__ = {
     "logs" : {
-        "directory" : os.path.join(sys.prefix, "director/logs")
+        "directory" : os.path.expanduser("~/.director/logs")
     },
     "projects" : {
-        "directory" : os.path.join(sys.prefix, "director/projects")
+        "directory" : os.path.expanduser("~/.director/projects")
+    },
+    "jails" : {
+        "remove_recursive" : False,
+        "remove_force" : True
     }
 }
 
-class ConfigFileNotFound(Exception):
-    """Exception thrown when a configuration file cannot be found."""
+__CONFIG__ = configparser.ConfigParser()
 
-class Config():
-    def __init__(self):
-        self.config = configparser.ConfigParser()
+def load(file):
+    __CONFIG__.read(file)
 
-    def read(self, file):
-        self.config.read(file)
+def get(*args, **kwargs):
+    return _get(__CONFIG__.get, *args, **kwargs)
 
-    def get(self, section, key):
-        default = DEFAULTS.get(section)
+def getboolean(*args, **kwargs):
+    return _get(__CONFIG__.getboolean, *args, **kwargs)
 
-        if default is not None:
-            default = default.get(key)
+def _get(func, section, key, fallback=None):
+    default = _get_default(section, key, fallback)
 
-        return self.config.get(section, key, fallback=default)
-    
-    @property
-    def logsdir(self):
-        return self.get("logs", "directory")
+    return func(section, key, fallback=default)
 
-    @property
-    def projectsdir(self):
-        return self.get("projects", "directory")
+def _get_default(section, key, fallback=None):
+    _section = __DEFAULT_CONFIG__.get(section)
+
+    if _section is not None:
+        default = _section.get(key, fallback)
+    else:
+        default = fallback
+
+    return default

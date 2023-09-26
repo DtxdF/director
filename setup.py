@@ -33,7 +33,8 @@ setup(
     license_files="LICENSE",
     install_requires=[
         "click",
-        "strictyaml"
+        "pyaml-env",
+        "python-dotenv"
     ],
     entry_points={
         "console_scripts" : [

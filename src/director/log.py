@@ -27,7 +27,28 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import re
+import os
+import time
 
-def project(name):
-    return re.match(r"^[a-zA-Z0-9._-]+$", name) is not None
+class Log():
+    def __init__(self, directory=None, basedir="."):
+        if directory is None:
+            directory = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
+
+        self.directory = os.path.join(
+            basedir,
+            directory
+        )
+
+    def open(self, logname):
+        logfile = self._get_logfile(logname)
+
+        dirname = os.path.dirname(logfile)
+
+        if dirname != "":
+            os.makedirs(dirname, exist_ok=True)
+
+        return open(logfile, "a")
+
+    def _get_logfile(self, logname):
+        return os.path.join(self.directory, logname)

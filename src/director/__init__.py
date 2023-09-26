@@ -31,356 +31,628 @@ import atexit
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
-import time
 import traceback
-import click
-import director.check
-import director.config
-import director.makejail
-import director.random
-import director.schema
-from director.sysexits import *
 
-CONFIG_FILE = os.path.join(sys.prefix, "etc/director.ini")
-CONFIG = None
-LOG_TIME = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
-DIRECTOR_YML = "appjail-director.yml"
+import click
+import dotenv
+
+import director.config
+import director.default
+import director.jail
+import director.log
+import director.project
+from director.sysexits import *
 
 @click.group()
 @click.help_option()
 @click.version_option()
-@click.option("-c", "--config", help=f"Configuration file.")
-def cli(config):
-    global CONFIG
+@click.option("-c", "--config", help="Configuration file.")
+@click.option("-e", "--env-file", default=director.default.ENV_FILE, help="Specify an alternate file to load environment variables.")
+def cli(config, env_file):
+    """
+    AppJail Director is a tool for running multi-jail environments on AppJail using a
+    simple YAML specification. A Director file is used to define how one or more jails
+    that make up your application are configured. Once you have a Director file, you
+    can create and start your application with a single command: `appjail-director up`.
 
-    if shutil.which("appjail") is None:
-        print("AppJail script not found. Cannot continue ...", file=sys.stderr)
-        return EX_UNAVAILABLE
+    The configuration files are loaded in the following order: prefix/etc/director.ini,
+    ~/.director/director.ini, from the environment variable DIRECTOR_CONFIG and from
+    the --config option. Only the first two are loaded if they exist, otherwise they
+    are ignored. When specifying the configuration file from the environment variable
+    or from the command-line option, you must be sure that these files exist, otherwise
+    an error will be displayed.
 
-    CONFIG = director.config.Config()
+    An environment file specified by --env-file is loaded if it exists, otherwise it is
+    ignored. This file is very useful for when you need to put some secrets or some
+    dynamic values in your Director file but they should not be in it and probably
+    not in a repository either.
+    """
 
-    if config is None and os.path.isfile(CONFIG_FILE):
-        CONFIG.read(CONFIG_FILE)
-    elif config is not None:
-        CONFIG.read(config)
+    # Load environment from a file.
+    dotenv.load_dotenv(env_file)
+    
+    # Config.
+
+    required_config_files = []
+
+    default_config_files = director.default.CONFIG_FILES
+
+    # From an environment variable.
+
+    env_config_file = os.getenv("DIRECTOR_CONFIG")
+
+    if env_config_file is not None:
+        required_config_files.append(env_config_file)
+
+    # From CLI.
+
+    if config is not None:
+        required_config_files.append(config)
+
+    for config_file in required_config_files:
+        if not os.path.isfile(config_file):
+            print(f"{config_file}: Configuration file does not exist.", file=sys.stderr)
+            sys.exit(EX_NOINPUT)
+
+    # Merge existing required with defaults.
+    default_config_files.extend(required_config_files)
+
+    for config_file in default_config_files:
+        if os.path.isfile(config_file):
+            try:
+                director.config.load(config_file)
+            except Exception as err:
+                print(f"{config_file}: Exception while loading the configuration file: {err}")
+                sys.exit(EX_CONFIG)
 
 @cli.command(short_help="Create a project")
 @click.help_option()
-@click.option("-f", "--file", default=f"{DIRECTOR_YML}", show_default=True, help="Specify an alternate director file.")
-@click.option("-p", "--project", default=lambda: director.random.project_name(), help="Specify an alternate project name. If none is specified, a random name is used.")
-def up(file, project):
+@click.option("-f", "--file", default=director.default.DIRECTOR_FILE, show_default=True, help="Specify an alternate director file.")
+@click.option("-p", "--project", help="Specify an alternate project name. If none is specified, a random name is used.")
+@click.option("--overwrite", is_flag=True, default=False, help="Re-create all services, even when it is not necessary.")
+def up(file, project, overwrite):
     """
     Reads a director file.
 
     Any access to a file or directory specified in the Director file is relative
     to it, not to the current directory in which AppJail Director is running.
-    
-    The file specified by `--file` is copied as a read-only file. That file is
-    used for further operations, specifically to make some assumptions when
-    the file specified by `--file` is read back.
 
-    When the file specified by `--file` is read, only the Makejails of the
-    differing jails are executed.
+    When a Director file specified by --file is read, Director will perform
+    some checks to verify if it needs to create or recreate a service.
 
-    If a jail is removed from the file specified by `--file`, that jail will be
-    removed from the system. Be careful when using ZFS as the datasets and all
-    dependents will be forcibly removed.
+    The checks that Director performs are: overwrite, differing, failed and mtime.
+    overwrite will recreate the service if the --overwrite option is specified.
+    differing will recreate the service if it differs from the old file that is
+    copied each time the up command is executed. failed will recreate the service
+    if it has previously failed in some way (e.g. creating or starting it). mtime
+    will recreate the service if the Makejail modification time differs from the
+    old one, but if ignore_mtime is specified this does not apply. Of course, if
+    a service does not exist, Director will create it. A service is also created
+    if the project is new (does not exist previously).
 
-    If the jail name is explicitly set and is removed, the old name is retained
-    and no random name is used for subsequent operations.
+    By default, when a project name is not specified using the --project option,
+    Director tries to read the DIRECTOR_PROJECT environment variable and, if it is
+    not set, a random name is chosen.
 
-    The service name and the jail name are not the same. The jail name should be
-    unique, the service name should not. It is recommended to set the jail name
-    only when it is really necessary. 
-
-    After performing the initial operations, such as running the Makejail, the
-    jail will be started if it is not already started.
+    When removing a service (specifically, the jail), the remove_force and
+    remove_recursive options specified from the configuration file determine the
+    behavior of this action. 
     """
 
-    if not director.check.project(project):
-        print(f"{project}: invalid project name.", file=sys.stderr)
-        return EX_DATAERR
+    if project is None:
+        project = _get_project_name_from_env(director.project.generate_random_name())
 
     if not os.path.isfile(file):
-        print(f"{file}: YAML file cannot be found.", file=sys.stderr)
-        return EX_NOINPUT
+        print(f"{file}: Director file cannot be found.", file=sys.stderr)
+        sys.exit(EX_NOINPUT)
 
-    logsdir = f"{CONFIG.logsdir}/{project}/{LOG_TIME}"
+    log = director.log.Log(
+        basedir=director.config.get("logs", "directory")
+    )
 
-    print("Starting Director;", f"project ID: {project};", f"logs: {logsdir};")
-
-    projectdir = f"{CONFIG.projectsdir}/{project}"
-    director_file = f"{projectdir}/{DIRECTOR_YML}"
+    print(f"Starting Director (project:{project}) ...")
 
     try:
-        _check_lock(projectdir)
-        atexit.register(director.makejail.unlock, projectdir)
-        director.makejail.lock(projectdir)
-
         # Make sure that any access to any other file will be relative to the
         # Director file.
         os.chdir(os.path.join(".", os.path.dirname(file)))
 
-        if director.makejail.is_done(projectdir) \
-           and os.path.isfile(director_file):
-            old = director.makejail.convert(director_file,
-                                            projectdir=projectdir,
-                                            check_volume=False)
-            new = director.makejail.convert(file,
-                                            projectdir=projectdir)
-
-            toremove = (x for x in old if x not in new)
-
-            for command in toremove:
-                service = command["service"]
-                name = command["name"]
-
-                director.makejail.destroy(name, logdir=f"{logsdir}/{service}/jails/{name}")
-
-            tocreate = []
-
-            for command in new:
-                service = command["service"]
-                name = command["name"]
-                servicedir = f"{projectdir}/{service}"
-
-                if command not in old \
-                   or director.makejail.check(name) != 0 \
-                   or director.makejail.has_failed(servicedir):
-                       tocreate.append(command)
-
-        else:
-            tocreate = director.makejail.convert(file,
-                                                 projectdir=projectdir)
-            new = tocreate
-
-        os.makedirs(projectdir, exist_ok=True)
-        
-        if os.path.isfile(director_file):
-            os.remove(director_file)
-
-        shutil.copyfile(file, director_file)
-
-        os.chmod(director_file, 0o440)
-
-        returncode = 0
-
-        show_id = False
-
-        for command in tocreate:
-            service = command["service"]
-            servicedir = f"{projectdir}/{service}"
-
-            show_id = True
-
-            returncode = director.makejail.run(command,
-                                               logdir=logsdir)
-
-            if returncode != 0:
-                director.makejail.set_failed(servicedir)
-
-                return returncode
-            else:
-                director.makejail.unset_failed(servicedir)
-
-        for command in new:
-            service = command["service"]
-            name = command["name"]
-            servicedir = f"{projectdir}/{service}"
-            logdir=f"{logsdir}/{service}/jails/{name}"
-
-            if director.makejail.status(name) == 1:
-                show_id = True
-
-                returncode = director.makejail.start(name, logdir=logdir)
-
-                if returncode != 0:
-                    director.makejail.set_failed(servicedir)
-
-                    return returncode
-                else:
-                    director.makejail.unset_failed(servicedir)
-
-        if show_id:
-            director.makejail.done(projectdir)
-
-            print("Finished:", project)
-        else:
-            print("Nothing to do.")
-    except Exception as err:
-        print("Exception:", err, file=sys.stderr)
-
-        os.makedirs(logsdir, exist_ok=True)
-        
-        with open(f"{logsdir}/exception.log", "w") as exc_fd:
-            traceback.print_exc(file=exc_fd)
-
-        return EX_SOFTWARE
-
-    return 0
-
-@cli.command(short_help="Stop a project")
-@click.help_option()
-@click.option("-d", "--destroy", is_flag=True, default=False, help="Destroy the project after stopping it.")
-@click.option("-p", "--project", required=True, help="Project name.")
-def down(destroy, project):
-    """
-    Stops the project and if the `--destroy` flag is used, it will be destroyed.
-    Destroy implies stopping and destroying all the jails in that project and
-    removing the project completely. Logs are not removed, you should remove
-    them manually using system commands when you don't need them.
-    """
-
-    if not director.check.project(project):
-        print(f"{project}: invalid project name.", file=sys.stderr)
-        return EX_DATAERR
-
-    projectdir = f"{CONFIG.projectsdir}/{project}"
-
-    if not director.makejail.is_done(projectdir):
-        print(f"{project}: project not found.", file=sys.stderr)
-        return EX_NOINPUT
-
-    logsdir = f"{CONFIG.logsdir}/{project}/{LOG_TIME}"
-
-    print("Starting Director;", f"project ID: {project};", f"logs: {logsdir};")
-
-    try:
-        _check_lock(projectdir)
-        atexit.register(director.makejail.unlock, projectdir)
-        director.makejail.lock(projectdir)
-
-        director_file = f"{projectdir}/{DIRECTOR_YML}"
-
-        parsed = director.schema.Schema(file=director_file)
-
-        services = parsed.services.keys()
+        # Destroying behavior.
+        remove_recursive = director.config.getboolean("jails", "remove_recursive")
+        remove_force = director.config.getboolean("jails", "remove_force")
 
         do_nothing = True
 
-        for service in services:
-            servicedir = f"{projectdir}/{service}"
-            name_file = f"{servicedir}/name"
+        projectsdir = director.config.get("projects", "directory")
 
-            with open(name_file) as fd:
-                name = fd.readline().rstrip("\n")
+        with director.project.Project(project, file, projectsdir) as project_obj:
+            # Initial state.
+            project_obj.set_state(director.project.STATE_UNFINISHED)
+
+            order = []
+
+            services = project_obj.get_services()
+            
+            toremove = project_obj.get_removed()
+            
+            # Differ & Order.
+            for service in services:
+                if overwrite or \
+                        project_obj.differ(service) or \
+                        project_obj.has_failed(service) or \
+                        (not project_obj.ignore_mtime(service) and \
+                            project_obj.check_makejail_mtime(service)):
+                    toremove.add(service)
+
+                order.append({
+                    "priority" : project_obj.get_priority(service),
+                    "service" : service
+                })
+
+            # Remove.
+            for service in toremove:
+                jail = project_obj.get_jail_name(service)
+
+                if director.jail.check(jail) == 0:
+                    do_nothing = False
+
+                    # To be reliable, the last log must be set before creating a log file. It is not
+                    # a good idea to do this at the start of the context manager as we lie to the
+                    # user since no log can be created in the execution of this code and the
+                    # following ones.
+                    project_obj.set_key("last_log", log.directory)
+
+                    if director.jail.status(jail) == 0:
+                        with log.open(os.path.join(service, "stop.log")) as fd:
+                            print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
+
+                            returncode = director.jail.stop(jail, fd)
+
+                            if returncode == 0:
+                                print("Done.")
+                            else:
+                                print("FAIL!")
+
+                    with log.open(os.path.join(service, "destroy.log")) as fd:
+                        print(f"Destroying {service} ({jail}) ...", end=" ", flush=True)
+
+                        returncode = director.jail.destroy(
+                            jail, fd, remove_recursive,
+                            remove_force
+                        )
+
+                        if returncode == 0:
+                            print("Done.")
+                            # Remove service information.
+                            project_obj.unset_key(service)
+                        else:
+                            print("FAIL!")
+                            project_obj.set_state(director.project.STATE_FAILED)
+                            project_obj.set_fail(service)
+                            sys.exit(returncode)
+
+            global_volumes = project_obj.get_volumes()
+
+            # Create.
+            for service_dict in sorted(order, key=lambda s: s["priority"]):
+                service = service_dict["service"]
+                jail = project_obj.get_jail_name(service)
+
+                if director.jail.check(jail) != 0 or \
+                        director.jail.is_dirty(jail) != 0:
+                    do_nothing = False
+
+                    options = []
+
+                    if not project_obj.reset_options(service):
+                        options.extend(project_obj.get_options())
+
+                    options.extend(project_obj.get_local_options(service))
+
+                    arguments = project_obj.get_arguments(service)
+
+                    environment = project_obj.get_environment(service)
+
+                    volumes = (
+                        project_obj.get_jail_volumes(service),
+                        global_volumes
+                    )
+
+                    makejail = project_obj.get_makejail(service)
+
+                    # Makejail modification time.
+                    project_obj.set_makejail_mtime(service)
+
+                    # Last log.
+                    project_obj.set_key("last_log", log.directory)
+
+                    with log.open(os.path.join(service, "makejail.log")) as fd:
+                        print(f"Creating {service} ({jail}) ...", end=" ", flush=True)
+
+                        returncode = director.jail.makejail(
+                            jail, makejail, fd, arguments,
+                            environment, volumes, options
+                        )
+
+                        if returncode == 0:
+                            print("Done.")
+                        else:
+                            print("FAIL!")
+                            project_obj.set_state(director.project.STATE_FAILED)
+                            project_obj.set_fail(service)
+                            sys.exit(returncode)
+
+                    # Start arguments.
+
+                    start_arguments = project_obj.get_start_arguments(service)
+
+                    if start_arguments:
+                        with log.open(os.path.join(service, "enable-start.log")) as fd:
+                            print("", "- Setting up start arguments ...", end=" ", flush=True)
+
+                            returncode = director.jail.enable_start(jail, fd, start_arguments)
+
+                            if returncode == 0:
+                                print("Done.")
+                            else:
+                                print("FAIL!")
+
+                    # Scripts.
+
+                    scripts = project_obj.get_scripts(service)
+
+                    if scripts:
+                        with log.open(os.path.join(service, "scripts.log")) as fd:
+                            print("- Scripts:")
+
+                            for script in scripts:
+                                text = script["text"]
+                                shell = script.get("shell", director.default.SHELL)
+                                type_ = script.get("type", director.default.SHELL_TYPE)
+
+                                _repr_text = repr(text)
+                                _end = " "
+
+                                for out in (sys.stdout, fd):
+                                    print("", f"- (type: {type_}, shell: {shell}):", _repr_text, "...",
+                                          end=_end, file=out, flush=True)
+
+                                    _end = "\n"
+
+                                returncode = director.jail.cmd(
+                                    jail, text, shell, type_, fd
+                                )
+
+                                if returncode == 0:
+                                    print("ok.")
+                                else:
+                                    print("FAIL!")
+                                    project_obj.set_state(director.project.STATE_FAILED)
+                                    project_obj.set_fail(service)
+                                    sys.exit(returncode)
+
+                if director.jail.status(jail) != 0:
+                    do_nothing = False
+
+                    # Last log.
+                    project_obj.set_key("last_log", log.directory)
+
+                    with log.open(os.path.join(service, "start.log")) as fd:
+                        print(f"Starting {service} ({jail}) ...", end=" ", flush=True)
+
+                        returncode = director.jail.start(jail, fd)
+
+                        if returncode == 0:
+                            print("Done.")
+                        else:
+                            print("FAIL!")
+                            project_obj.set_state(director.project.STATE_FAILED)
+                            project_obj.set_fail(service)
+                            sys.exit(returncode)
+
+            # Done.
+            project_obj.set_state(director.project.STATE_DONE)
+
+            if do_nothing:
+                print("Nothing to do.")
+            else:
+                print("Finished:", project)
+    except Exception as err:
+        _catch(log, err)
+
+        sys.exit(EX_SOFTWARE)
+
+    sys.exit(EX_OK)
+
+@cli.command(short_help="Stop and/or destroy a project")
+@click.help_option()
+@click.option("-d", "--destroy", is_flag=True, default=False, help="Destroy the project after stopping it.")
+@click.option("-p", "--project", help="Project name.")
+@click.option("--ignore-failed", is_flag=True, default=False, help="Ignore services that are not destroyed.")
+def down(destroy, project, ignore_failed):
+    """
+    Stops the project and if the --destroy flag is used, it will be destroyed.
+    Destroy implies stopping and destroying all the jails in that project and
+    removing the project completely. Logs are not removed, you should remove
+    them manually using system commands when you don't need them.
+
+    The project name is obtained from the command-line option and, if not set,
+    from the DIRECTOR_PROJECT environment variable.
+    """
+
+    if project is None:
+        project = _get_project_name_from_env()
+
+        if project is None:
+            __project_name_not_specified()
+            sys.exit(EX_DATAERR)
+
+    log = director.log.Log(
+        basedir=director.config.get("logs", "directory")
+    )
+
+    print(f"Starting Director (project:{project}) ...")
+
+    try:
+        do_nothing = True
+
+        projectsdir = director.config.get("projects", "directory")
+
+        # Destroying behavior.
+        remove_recursive = director.config.getboolean("jails", "remove_recursive")
+        remove_force = director.config.getboolean("jails", "remove_force")
+
+        project_obj = director.project.Project(project, basedir=projectsdir)
+
+        if not os.path.isdir(project_obj.directory):
+            print(f"{project}: Project not found.", file=sys.stderr)
+            sys.exit(EX_NOINPUT)
+
+        # We cannot use a context manager because it calls the .open() method which fails
+        # since no `director` file has been defined.
+        atexit.register(project_obj.unlock)
+
+        project_obj.lock()
+        project_obj.set_state(director.project.STATE_DESTROYING)
+
+        services = project_obj.get_services(next=False)
+
+        for service in services:
+            jail = project_obj.get_jail_name(service, where="current")
+
+            status = director.jail.status(jail)
+
+            if status == 0:
+                do_nothing = False
+
+                print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
+
+                returncode = director.jail.stop(jail, subprocess.DEVNULL)
+
+                if returncode == 0:
+                    print("Done.")
+                else:
+                    print("FAIL!")
 
             if destroy:
                 do_nothing = False
 
-                director.makejail.destroy(name, logdir=f"{logsdir}/{service}/jails/{name}")
-            else:
-                status_code = director.makejail.status(name)
+                print(f"Destroying {service} ({jail}) ...", end=" ", flush=True)
 
-                if status_code == 0:
-                    do_nothing = False
+                returncode = director.jail.destroy(
+                    jail, subprocess.DEVNULL,
+                    remove_recursive, remove_force
+                )
 
-                    director.makejail.stop(name, logdir=f"{logsdir}/{service}/jails/{name}")
+                if returncode == 0:
+                    print("Done.")
+                else:
+                    print("FAIL!")
+
+                    if not ignore_failed:
+                        sys.exit(returncode)
 
         if destroy:
             do_nothing = False
 
-            shutil.rmtree(projectdir, ignore_errors=True)
+            shutil.rmtree(project_obj.directory, ignore_errors=True)
 
         if do_nothing:
             print("Nothing to do.")
     except Exception as err:
-        print("Exception:", err, file=sys.stderr)
+        _catch(log, err)
 
-        os.makedirs(logsdir, exist_ok=True)
+        sys.exit(EX_SOFTWARE)
     
-        with open(f"{logsdir}/exception.log", "w") as exc_fd:
-            traceback.print_exc(file=exc_fd)
+    sys.exit(EX_OK)
 
-        return EX_SOFTWARE
-    
-    return 0
+@cli.command(short_help="List projects")
+@click.help_option()
+@click.option("-s", "--state", default=director.project.STATES, multiple=True, show_default=True, help="Project status. Ignored when using --project. Can be specified several times.")
+def ls(state):
+    """
+    Lists projects.
 
-@cli.command(short_help="List the projects already created")
+    In addition to simply displaying the project name, the current status
+    of the project is shown symbolically on the left side as follows:
+    + (DONE), - (FAILED), ! (UNFINISHED), x (DESTROYING), ? (UNKNOWN).
+    """
+
+    # From the source code, this name makes more sense.
+    states = state
+
+    projectsdir = director.config.get("projects", "directory")
+
+    if not os.path.isdir(projectsdir):
+        print("No project has been created.")
+        sys.exit(EX_OK)
+
+    # Only to inform the user.
+    invalid_state = None
+
+    # State check.
+    try:
+        for _state in states:
+            # Last state before the exception is thrown.
+            invalid_state = _state
+
+            # The check.
+            director.project.STATES.index(_state)
+    except ValueError:
+        print(f"{invalid_state}: Invalid state.", file=sys.stderr)
+        sys.exit(EX_DATAERR)
+
+    show_header = True
+
+    do_nothing = True
+
+    for project in pathlib.Path(projectsdir).iterdir():
+        do_nothing = False
+
+        project_obj = director.project.Project(project.name, basedir=projectsdir)
+
+        project_state = project_obj.get_state()
+
+        # Fallback.
+        if project_state is None:
+            project_state = director.project.STATES[director.project.STATE_UNFINISHED]
+        
+        # Match?
+        match = False
+
+        for _state in states:
+            if _state == project_state:
+                match = True
+                break
+
+        # Ignore.
+        if not match:
+            continue
+
+        if show_header:
+            print("Projects:")
+
+            show_header = False
+
+        if _state == director.project.STATES[director.project.STATE_DONE]:
+            state_symbol = "+"
+        elif _state == director.project.STATES[director.project.STATE_FAILED]:
+            state_symbol = "-"
+        elif _state == director.project.STATES[director.project.STATE_UNFINISHED]:
+            state_symbol = "!"
+        elif _state == director.project.STATES[director.project.STATE_DESTROYING]:
+            state_symbol = "x"
+        else:
+            state_symbol = "?"
+
+        print("", state_symbol, project.name)
+
+    if do_nothing:
+        print("No project has been created.")
+
+    sys.exit(EX_OK)
+
+@cli.command(short_help="Show information about a project")
 @click.help_option()
 @click.option("-p", "--project", help="Project name.")
-def ls(project):
+def info(project):
     """
-    Lists projects and project jails.
+    Show information about a project.
+
+    In addition to displaying the services, the current status of each service
+    is shown symbolically on the left side as follows: + (RUNNING), - (STOPPED),
+    ! (FAILED). In addition for !, the status code will be displayed.
+
+    The project name is obtained from the command-line option and, if not set,
+    from the DIRECTOR_PROJECT environment variable.
     """
 
-    if project is not None:
-        if not director.check.project(project):
-            print(f"{project}: invalid project name.", file=sys.stderr)
-            return EX_DATAERR
+    if project is None:
+        project = _get_project_name_from_env()
 
-        projectdir = f"{CONFIG.projectsdir}/{project}"
+        if project is None:
+            __project_name_not_specified()
+            sys.exit(EX_DATAERR)
 
-        if not director.makejail.is_done(projectdir):
-            print(f"{project}: project not found.", file=sys.stderr)
-            return EX_NOINPUT
+    log = director.log.Log(
+        basedir=director.config.get("logs", "directory")
+    )
 
-        logsdir = f"{CONFIG.logsdir}/{project}/{LOG_TIME}"
-        
-        try:
-            director_file = f"{projectdir}/{DIRECTOR_YML}"
+    try:
+        projectsdir = director.config.get("projects", "directory")
 
-            parsed = director.schema.Schema(file=director_file)
+        project_obj = director.project.Project(project, basedir=projectsdir)
 
-            services = parsed.services.keys()
+        if not os.path.isdir(project_obj.directory):
+            print(f"{project}: Project not found.", file=sys.stderr)
+            sys.exit(EX_NOINPUT)
 
-            if services:
-                print(f"{project}:")
+        state = project_obj.get_state()
 
-            for service in services:
-                servicedir = f"{projectdir}/{service}"
-                name_file = f"{servicedir}/name"
+        # Fallback.
+        if state is None:
+            state = director.project.STATES[director.project.STATE_UNFINISHED]
 
-                with open(name_file) as fd:
-                    name = fd.readline().rstrip("\n")
+        # This looks better.
+        state = state.upper()
 
-                status_code = director.makejail.status(name)
+        last_log = project_obj.get_key("last_log") or "none"
 
-                if status_code == 0:
-                    status = "+"
-                elif status_code == 1:
-                    status = "-"
-                else:
-                    status = f"[{status_code}]"
+        if project_obj.locked():
+            locked = "true"
+        else:
+            locked = "false"
 
-                print(status, service, f"({name})")
-        except Exception as err:
-            print(f"Exception (logsdir: {logsdir}):", err, file=sys.stderr)
+        services = project_obj.get_services(next=False)
 
-            os.makedirs(logsdir, exist_ok=True)
-        
-            with open(f"{logsdir}/exception.log", "w") as exc_fd:
-                traceback.print_exc(file=exc_fd)
+        print(f"{project}:")
+        print("", "state:", state)
+        print("", "last log:", last_log)
+        print("", "locked:", locked)
+        print("", "services:")
 
-            return EX_SOFTWARE
-    else:
-        if not os.path.isdir(CONFIG.projectsdir):
-            return 0
+        for service in services:
+            jail = project_obj.get_jail_name(service, where="current")
 
-        show_header = True
+            status = director.jail.status(jail)
 
-        for project in pathlib.Path(CONFIG.projectsdir).iterdir():
-            projectdir = f"{CONFIG.projectsdir}/{project.name}"
+            if status == 0:
+                status_symbol = "+"
+            elif status == 1:
+                status_symbol = "-"
+            else:
+                status_symbol = "!"
 
-            if not director.makejail.is_done(projectdir):
-                continue
+            print(" ", f"{status_symbol} {service} ({jail})", end="")
 
-            if show_header:
-                print("Projects:")
+            if status > 1:
+                print(f" [{status}]")
+            else:
+                print()
+    except Exception as err:
+        _catch(log, err)
 
-                show_header = False
+        sys.exit(EX_SOFTWARE)
+    
+    sys.exit(EX_OK)
 
-            print("-", project.name)
+def __project_name_not_specified():
+    print("The project name is not specified, use `--project` or", file=sys.stderr)
+    print("set the `DIRECTOR_PROJECT` environment variable.", file=sys.stderr)
 
-    return 0
+def _get_project_name_from_env(default=None):
+    return os.getenv("DIRECTOR_PROJECT", default)
 
-def _check_lock(projectdir):
-    if director.makejail.is_locked(projectdir):
-        print("The project is currently locked. If you are sure that no other " \
-              "instances of Director are running for this project, run " \
-              f"`rm -f \"{projectdir}/lock\"`.", file=sys.stderr)
-        sys.exit(EX_NOPERM)
+def _catch(log, err):
+    with log.open("exception.log") as fd:
+        print("Exception:")
+        print("", "type:", err.__class__.__name__, file=sys.stderr)
+        print("", "file:", fd.name, file=sys.stderr)
+        print("", "error:", err, file=sys.stderr)
+
+        traceback.print_exc(file=fd)
 
 if __name__ == "__main__":
     cli()

@@ -27,19 +27,22 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-EX_OK = 0
-EX_USAGE = 64
-EX_DATAERR = 65
-EX_NOINPUT = 66
-EX_NOUSER = 67
-EX_NOHOST = 68
-EX_UNAVAILABLE = 69
-EX_SOFTWARE = 70
-EX_OSERR = 71
-EX_OSFILE = 72
-EX_CANTCREAT = 73
-EX_IOERR = 74
-EX_TEMPFAIL = 75
-EX_PROTOCOL = 76
-EX_NOPERM = 77
-EX_CONFIG = 78
+import os
+import sys
+
+CONFIG_FILES = [
+    os.path.join(sys.prefix, "etc/director.ini"),
+    os.path.expanduser("~/.config/director/director.ini")
+]
+DIRECTOR_FILE = "appjail-director.yml"
+ENV_FILE = ".env"
+PRIORITY = 99
+MAKEJAIL = "Makejail"
+RESET_OPTIONS = False
+IGNORE_MTIME = False
+SHELL = "/bin/sh -c"
+SHELL_TYPE = "jexec"
+FSTAB_TYPE = "nullfs"
+FSTAB_OPTIONS = "rw"
+FSTAB_DUMP = 0
+FSTAB_PASS = 0

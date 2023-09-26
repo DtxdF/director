@@ -27,10 +27,43 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import secrets
+import os
+import shutil
 
-def project_name():
-    return secrets.token_hex(5)
+class Key():
+    def __init__(self, directory):
+        self.directory = directory
 
-def jail_name():
-    return secrets.token_hex(5)
+    def set_key(self, key, value):
+        keyfile = self.get_keyfile(key)
+
+        dirname = os.path.dirname(keyfile)
+
+        if dirname != "":
+            os.makedirs(dirname, exist_ok=True)
+
+        with open(keyfile, "w") as fd:
+            fd.write(value)
+
+    def get_key(self, key, default=None):
+        if not self.has_key(key):
+            return default
+
+        keyfile = self.get_keyfile(key)
+
+        with open(keyfile, "r") as fd:
+            return fd.read()
+
+    def has_key(self, key):
+        return os.path.isfile(self.get_keyfile(key))
+
+    def unset_key(self, key):
+        keyfile = self.get_keyfile(key)
+
+        if os.path.isfile(keyfile):
+            os.remove(keyfile)
+        else:
+            shutil.rmtree(keyfile, ignore_errors=True)
+
+    def get_keyfile(self, key):
+        return os.path.join(self.directory, key)

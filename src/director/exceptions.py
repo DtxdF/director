@@ -27,19 +27,26 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-EX_OK = 0
-EX_USAGE = 64
-EX_DATAERR = 65
-EX_NOINPUT = 66
-EX_NOUSER = 67
-EX_NOHOST = 68
-EX_UNAVAILABLE = 69
-EX_SOFTWARE = 70
-EX_OSERR = 71
-EX_OSFILE = 72
-EX_CANTCREAT = 73
-EX_IOERR = 74
-EX_TEMPFAIL = 75
-EX_PROTOCOL = 76
-EX_NOPERM = 77
-EX_CONFIG = 78
+class InvalidProjectName(Exception):
+    pass
+
+class ProjectLocked(Exception):
+    pass
+
+class ServiceNotFound(Exception):
+    pass
+
+class AppJailScriptNotFound(Exception):
+    pass
+
+class VolumeNotFound(Exception):
+    pass
+
+class InvalidCmdType(Exception):
+    pass
+
+class InvalidSpec(Exception):
+    pass
+
+class DirectorFileNotDefined(Exception):
+    pass
