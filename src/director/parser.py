@@ -44,6 +44,14 @@ def validate(document):
     if not isinstance(document, dict):
         raise director.exceptions.InvalidSpec("Invalid document specification.")
 
+    allowed_keys = (
+        "options",
+        "services",
+        "volumes"
+    )
+
+    __check_allowed_key(allowed_keys, "<main>", document)
+
     options = document.get("options")
 
     if options is not None:
@@ -84,7 +92,24 @@ def __check_services(services):
 
 def __check_service(service, name, nro):
     _id = f"services/{name}"
-    
+
+    allowed_keys = (
+        "priority",
+        "name",
+        "makejail",
+        "reset_options",
+        "ignore_mtime",
+        "options",
+        "arguments",
+        "environment",
+        "volumes",
+        "scripts",
+        "start",
+        "serial"
+    )
+
+    __check_allowed_key(allowed_keys, _id, service)
+
     priority = service.get("priority")
 
     if priority is not None and not isinstance(priority, int):
@@ -162,6 +187,16 @@ def __check_volumes(volumes):
 def __check_volume(volume, name, nro):
     _id = f"volumes/{name}"
 
+    allowed_keys = (
+        "device",
+        "type",
+        "options",
+        "dump",
+        "pass"
+    )
+
+    __check_allowed_key(allowed_keys, _id, volume)
+
     device = volume.get("device")
 
     if device is None:
@@ -202,6 +237,14 @@ def __check_scripts(scripts, name):
 
 def __check_script(script, name, nro):
     _id = f"services/{name}/scripts"
+
+    allowed_keys = (
+        "shell",
+        "type",
+        "text"
+    )
+
+    __check_allowed_key(allowed_keys, _id, script)
 
     shell = script.get("shell")
 
@@ -246,3 +289,8 @@ def __check_generic_list(l, n, allow_none=True):
 
         if value is not None and not isinstance(value, str):
             value = str(value)
+
+def __check_allowed_key(allowed_keys, name, data):
+    for key in data:
+        if key not in allowed_keys:
+            raise director.exceptions.InvalidSpec(f"{name}: Unknown key \"{key}\".")
