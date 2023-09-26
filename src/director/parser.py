@@ -55,7 +55,7 @@ def validate(document):
     options = document.get("options")
 
     if options is not None:
-        __check_options(options)
+        document["options"] = _fix_non_str_list(options, "options")
 
     services = document.get("services")
 
@@ -69,21 +69,17 @@ def validate(document):
     if volumes is not None:
         __check_volumes(volumes)
 
-def __check_options(options):
-    __check_generic_list(options, "options")
-
 def __check_services(services):
     if not isinstance(services, dict):
         raise director.exceptions.InvalidSpec("services: Must be a Mapping.")
 
-    for nro, name in enumerate(services, 1):
-        if not isinstance(name, str):
-            name = str(name)
+    _services = _fix_non_str_keys(services)
 
+    for nro, name in enumerate(_services, 1):
         if not re.match(r"^[a-zA-Z0-9._-]+$", name):
             raise director.exceptions.InvalidSpec(f"services ({name} / #{nro}): Service name is incorrect.")
 
-        service = services[name]
+        service = _services[name]
 
         if not isinstance(service, dict):
             raise director.exceptions.InvalidSpec(f"services/{name} (#{nro}): Must be a Mapping.")
@@ -121,6 +117,8 @@ def __check_service(service, name, nro):
         if not isinstance(jail_name, str):
             jail_name = str(jail_name)
 
+            service["name"] = jail_name
+
         if not re.match(r"^[a-zA-Z0-9_][a-zA-Z0-9_-]*$", jail_name):
             raise director.exceptions.InvalidSpec(f"{_id} (name / #{nro}): Jail name is incorrect.")
 
@@ -128,6 +126,8 @@ def __check_service(service, name, nro):
 
     if makejail is not None and not isinstance(makejail, str):
         makejail = str(makejail)
+
+        service["makejail"] = makejail
 
     reset_options = service.get("reset_options")
 
@@ -142,32 +142,33 @@ def __check_service(service, name, nro):
     options = service.get("options")
 
     if options is not None:
-        __check_generic_list(options, f"{_id}/options")
+        service["options"] = _fix_non_str_list(options, f"{_id}/options")
 
     arguments = service.get("arguments")
 
     if arguments is not None:
-        __check_generic_list(arguments, f"{_id}/arguments", False)
+        service["arguments"] = _fix_non_str_list(arguments, f"{_id}/arguments", False)
 
     environment = service.get("environment")
 
     if environment is not None:
-        __check_generic_list(environment, f"{_id}/environment")
+        service["environment"] = _fix_non_str_list(environment, f"{_id}/environment")
 
     volumes = service.get("volumes")
 
     if volumes is not None:
-        __check_generic_list(volumes, f"{_id}/volumes", False)
+        service["volumes"] = _fix_non_str_list(volumes, f"{_id}/volumes", False)
 
     scripts = service.get("scripts")
 
     if scripts is not None:
-        __check_scripts(scripts, name)
+        service["scripts"] = _fix_non_str_list(scripts)
+        __check_scripts(service["scripts"], name)
 
     start = service.get("start")
 
     if start is not None:
-        __check_generic_list(start, f"{_id}/start", False)
+        service["start"] = _fix_non_str_list(start, f"{_id}/start", False)
 
     serial = service.get("serial")
 
@@ -178,11 +179,15 @@ def __check_volumes(volumes):
     if not isinstance(volumes, dict):
         raise director.exceptions.InvalidSpec("volumes: Must be a Mapping.")
 
-    for nro, name in enumerate(volumes, 1):
-        if not isinstance(name, str):
-            name = str(name)
+    _volumes = _fix_non_str_keys(volumes)
 
-        __check_volume(volumes[name], name, nro)
+    for nro, name in enumerate(_volumes, 1):
+        volume = _volumes[name]
+
+        if not isinstance(volume, dict):
+            raise director.exceptions.InvalidSpec(f"volumes/{name} (#{nro}): Must be a Mapping.")
+
+        __check_volume(volume, name, nro)
 
 def __check_volume(volume, name, nro):
     _id = f"volumes/{name}"
@@ -205,15 +210,21 @@ def __check_volume(volume, name, nro):
     if not isinstance(device, str):
         device = str(device)
 
+        volume["device"] = device
+
     type_ = volume.get("type")
 
     if type_ is not None and not isinstance(type_, str):
         type_ = str(type_)
 
+        volume["type"] = type_
+
     options = volume.get("options")
 
     if options is not None and not isinstance(options, str):
         options = str(options)
+
+        volume["options"] = options
 
     dump = volume.get("dump")
 
@@ -229,7 +240,9 @@ def __check_scripts(scripts, name):
     if not isinstance(scripts, list):
         raise director.exceptions.InvalidSpec(f"scripts: Must be a List.")
 
-    for nro, script in enumerate(scripts, 1):
+    _scripts = _fix_non_str_keys(scripts)
+
+    for nro, script in enumerate(_scripts, 1):
         if not isinstance(script, dict):
             raise director.exceptions.InvalidSpec(f"scripts (#{nro}): Must be a Mapping.")
 
@@ -251,11 +264,15 @@ def __check_script(script, name, nro):
     if not isinstance(shell, str):
         shell = str(shell)
 
+        script["shell"] = shell
+
     type_ = script.get("type")
 
     if type_ is not None:
         if not isinstance(type_, str):
             type_ = str(type_)
+
+            script["type"] = type_
 
         if type_ not in ("jexec", "local", "chroot"):
             raise director.exceptions.InvalidSpec(f"{_id} (type / #{nro}): Only jexec, local and chroot can be used.")
@@ -268,16 +285,25 @@ def __check_script(script, name, nro):
     if not isinstance(text, str):
         text = str(text)
 
-def __check_generic_list(l, n, allow_none=True):
-    if not isinstance(l, list):
-        raise director.exceptions.InvalidSpec(f"{n}: Must be a List.")
+        script["text"] = text
 
-    for nro, e in enumerate(l, 1):
+def __check_allowed_key(allowed_keys, name, data):
+    for key in data:
+        if key not in allowed_keys:
+            raise director.exceptions.InvalidSpec(f"{name}: Unknown key \"{key}\".")
+
+def _fix_non_str_list(data, name, allow_none=True):
+    if not isinstance(data, list):
+        raise director.exceptions.InvalidSpec(f"{name}: Must be a List.")
+
+    l = []
+
+    for nro, e in enumerate(data, 1):
         if not isinstance(e, dict):
-            raise director.exceptions.InvalidSpec(f"{n} (#{nro}): Must be a Mapping.")
+            raise director.exceptions.InvalidSpec(f"{name} (#{nro}): Must be a Mapping.")
 
         if len(e) != 1:
-            raise director.exceptions.InvalidSpec(f"{n} (#{nro}): Invalid length. Must have only one element.")
+            raise director.exceptions.InvalidSpec(f"{name} (#{nro}): Invalid length. Must have only one element.")
 
         key, value = tuple(e.items())[0]
 
@@ -285,12 +311,26 @@ def __check_generic_list(l, n, allow_none=True):
             key = str(key)
 
         if not allow_none and value is None:
-            raise director.exceptions.InvalidSpec(f"{n} ({key} / #{nro}): Value required but not defined.")
+            raise director.exceptions.InvalidSpec(f"{name} ({key} / #{nro}): Value required but not defined.")
 
         if value is not None and not isinstance(value, str):
             value = str(value)
 
-def __check_allowed_key(allowed_keys, name, data):
-    for key in data:
-        if key not in allowed_keys:
-            raise director.exceptions.InvalidSpec(f"{name}: Unknown key \"{key}\".")
+        l.append({
+            key : value
+        })
+
+    return l
+
+def _fix_non_str_keys(data):
+    _data = {}
+
+    for name in data:
+        if isinstance(name, str):
+            _name = name
+        else:
+            _name = str(name)
+
+        _data[_name] = data[name]
+
+    return _data
