@@ -276,9 +276,11 @@ It has the same effect as the global `options`, but only for the services in whi
 
 **type**: String.
 
-**default**: `nullfs`.
+**default**: `<pseudofs>`.
 
-**description**: Type of the file system. When using `nullfs`, `device` is treated as a directory and after getting the absolute path it will be used as the actual `device`.
+**description**: Type of the file system. When using `nullfs` or `<pseudofs>`, `device` is treated as a directory and after getting the absolute path it will be used as the actual `device`.
+
+See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more details about the pseudo-filesystem.
 
 #### options
 
