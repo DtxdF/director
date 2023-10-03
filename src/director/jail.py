@@ -158,7 +158,7 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
             type_ = volume.get("type", director.default.FSTAB_TYPE)
 
             if type_ == "nullfs":
-                if not os.path.isdir(device):
+                if not os.path.exists(device):
                     os.makedirs(device, exist_ok=True)
 
                 device = os.path.realpath(device)
