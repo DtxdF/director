@@ -171,6 +171,12 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
                 if not os.path.exists(device):
                     os.makedirs(device, exist_ok=True)
 
+                owner = volume.get("owner")
+                group = volume.get("group")
+                
+                if owner is not None or group is not None:
+                    shutil.chown(device, owner, group)
+
                 # Restore from old umask.
                 if old_umask is not None:
                     os.umask(old_umask)

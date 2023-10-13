@@ -312,6 +312,16 @@ See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more detai
 
 **description**: Valid only for `nullfs` and `<pseudofs>` file systems. When defined the umask is set before the creation of the directory (aka device) and is restored after the directory is created.
 
+#### owner
+
+**type**: Integer or String.
+
+**description**: Valid only for `nullfs` and `<pseudofs>` file systems. When defined the directory owner is set after the creation of the directory (aka device). Note that if you use a string instead of an integer, it will be resolved from your local user database.
+
+#### group
+
+It has the same effect as `owner`, but for the device group.
+
 ## Contributing
 
 If you have found a bug, have an idea or need help, use the [issue tracker](https://github.com/DtxdF/director/issues/new). Of course, PRs are welcome.
