@@ -229,8 +229,10 @@ def up(file, project, overwrite):
 
                         if returncode == 0:
                             print("Done.")
-                            # Remove service information.
-                            project_obj.unset_key(service)
+
+                            # Remove service information if it is no longer really needed.
+                            if service not in services:
+                                project_obj.unset_key(service)
                         else:
                             print("FAIL!")
                             project_obj.set_state(director.project.STATE_FAILED)
