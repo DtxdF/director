@@ -306,6 +306,12 @@ See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more detai
 
 **description**: It is used by the `fsck(8)` and `quotacheck(8)` programs to determine the order in which file system and quota checks are done at reboot time.
 
+#### umask
+
+**type**: Integer.
+
+**description**: Valid only for `nullfs` and `<pseudofs>` file systems. When defined the umask is set before the creation of the directory (aka device) and is restored after the directory is created.
+
 ## Contributing
 
 If you have found a bug, have an idea or need help, use the [issue tracker](https://github.com/DtxdF/director/issues/new). Of course, PRs are welcome.

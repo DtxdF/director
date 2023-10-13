@@ -197,7 +197,8 @@ def __check_volume(volume, name, nro):
         "type",
         "options",
         "dump",
-        "pass"
+        "pass",
+        "umask"
     )
 
     __check_allowed_key(allowed_keys, _id, volume)
@@ -235,6 +236,11 @@ def __check_volume(volume, name, nro):
 
     if pass_ is not None and not isinstance(pass_, int):
         raise director.exceptions.InvalidSpec(f"{_id} (pass / #{nro}): Must be an Integer.")
+
+    umask = volume.get("umask")
+
+    if umask is not None and not isinstance(umask, int):
+        raise director.exceptions.InvalidSpec(f"{_id} (umask / #{nro}): Must be an Integer.")
 
 def __check_scripts(scripts, name):
     if not isinstance(scripts, list):

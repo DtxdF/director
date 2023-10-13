@@ -158,8 +158,22 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
             type_ = volume.get("type", director.default.FSTAB_TYPE)
 
             if type_ == "nullfs" or type_ == "<pseudofs>":
+                umask = volume.get("umask")
+
+                old_umask = None
+
+                # Get the current umask and sets the user's desired umask.
+                if umask is not None:
+                    old_umask = os.umask(0)
+
+                    os.umask(umask)
+
                 if not os.path.exists(device):
                     os.makedirs(device, exist_ok=True)
+
+                # Restore from old umask.
+                if old_umask is not None:
+                    os.umask(old_umask)
 
                 device = os.path.realpath(device)
 
