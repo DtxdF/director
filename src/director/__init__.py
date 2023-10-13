@@ -375,7 +375,8 @@ def up(file, project, overwrite):
 @click.option("-d", "--destroy", is_flag=True, default=False, help="Destroy the project after stopping it.")
 @click.option("-p", "--project", help="Project name.")
 @click.option("--ignore-failed", is_flag=True, default=False, help="Ignore services that are not destroyed.")
-def down(destroy, project, ignore_failed):
+@click.option("--ignore-services", is_flag=True, default=False, help="Ignore services.")
+def down(destroy, project, ignore_failed, ignore_services):
     """
     Stops the project and if the --destroy flag is used, it will be destroyed.
     Destroy implies stopping and destroying all the jails in that project and
@@ -421,47 +422,52 @@ def down(destroy, project, ignore_failed):
         project_obj.lock()
         project_obj.set_state(director.project.STATE_DESTROYING)
 
-        services = project_obj.get_services(next=False)
+        if not ignore_services:
+            services = project_obj.get_services(next=False)
 
-        for service in services:
-            jail = project_obj.get_jail_name(service, where="current")
+            for service in services:
+                jail = project_obj.get_jail_name(service, where="current")
 
-            status = director.jail.status(jail)
+                status = director.jail.status(jail)
 
-            if status == 0:
-                do_nothing = False
+                if status == 0:
+                    do_nothing = False
 
-                print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
+                    print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
 
-                returncode = director.jail.stop(jail, subprocess.DEVNULL)
+                    returncode = director.jail.stop(jail, subprocess.DEVNULL)
 
-                if returncode == 0:
-                    print("Done.")
-                else:
-                    print("FAIL!")
+                    if returncode == 0:
+                        print("Done.")
+                    else:
+                        print("FAIL!")
 
-            if destroy:
-                do_nothing = False
+                if destroy:
+                    do_nothing = False
 
-                print(f"Destroying {service} ({jail}) ...", end=" ", flush=True)
+                    print(f"Destroying {service} ({jail}) ...", end=" ", flush=True)
 
-                returncode = director.jail.destroy(
-                    jail, subprocess.DEVNULL,
-                    remove_recursive, remove_force
-                )
+                    returncode = director.jail.destroy(
+                        jail, subprocess.DEVNULL,
+                        remove_recursive, remove_force
+                    )
 
-                if returncode == 0:
-                    print("Done.")
-                else:
-                    print("FAIL!")
+                    if returncode == 0:
+                        print("Done.")
+                    else:
+                        print("FAIL!")
 
-                    if not ignore_failed:
-                        sys.exit(returncode)
+                        if not ignore_failed:
+                            sys.exit(returncode)
 
         if destroy:
             do_nothing = False
 
+            print(f"Destroying {project} ...", end=" ", flush=True)
+
             shutil.rmtree(project_obj.directory, ignore_errors=True)
+
+            print("Done.")
 
         if do_nothing:
             print("Nothing to do.")
