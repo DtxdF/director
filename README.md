@@ -312,6 +312,12 @@ See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more detai
 
 **description**: Valid only for `nullfs` and `<pseudofs>` file systems. When defined the umask is set before the creation of the directory (aka device) and is restored after the directory is created.
 
+#### mode
+
+**type**: Integer.
+
+**description**: Valid only for `nullfs` and `<pseudofs>` file systems. Change the access permissions of the directory (aka device) after its creation.
+
 #### owner
 
 **type**: Integer or String.

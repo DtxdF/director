@@ -171,6 +171,13 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
                 if not os.path.exists(device):
                     os.makedirs(device, exist_ok=True)
 
+                # I know that `os.makedirs()` already has a parameter named `mode`, but it is
+                # preferable this way to set the mode each time.
+                mode = volume.get("mode")
+
+                if mode is not None:
+                    os.chmod(device, mode)
+
                 owner = volume.get("owner")
                 group = volume.get("group")
                 

@@ -199,6 +199,7 @@ def __check_volume(volume, name, nro):
         "dump",
         "pass",
         "umask",
+        "mode",
         "owner",
         "group"
     )
@@ -243,6 +244,11 @@ def __check_volume(volume, name, nro):
 
     if umask is not None and not isinstance(umask, int):
         raise director.exceptions.InvalidSpec(f"{_id} (umask / #{nro}): Must be an Integer.")
+
+    mode = volume.get("mode")
+
+    if mode is not None and not isinstance(mode, int):
+        raise director.exceptions.InvalidSpec(f"{_id} (mode / #{nro}): Must be an Integer.")
 
     owner = volume.get("owner")
 
