@@ -168,15 +168,15 @@ class Project(director.keys.Key):
                 where != "both":
             raise ValueError(f"{where}: Invalid option.")
 
-        services = None
+        service = None
 
         if where == "both" or where == "next":
             services = self.__get_spec().get("services", {})
+            service = services.get(service_name)
         
-        if services is None and (where == "both" or where == "current"):
+        if service is None and (where == "both" or where == "current"):
             services = self.__get_spec(False).get("services", {})
-
-        service = services.get(service_name)
+            service = services.get(service_name)
 
         if service is None:
             self.__raise_ServiceNotFound(service_name)
