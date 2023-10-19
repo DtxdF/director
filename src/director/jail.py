@@ -28,14 +28,19 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import random
 import shlex
 import shutil
+import signal
 import subprocess
+import sys
+import time
 
 import director.default
 import director.exceptions
+from director.sysexits import *
 
-def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None):
+def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None):
     if type not in ["jexec", "local", "chroot"]:
         raise director.exceptions.InvalidCmdType(f"{type}: Invalid command type.")
 
@@ -46,9 +51,9 @@ def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None):
     cmd.extend(shlex.split(shell))
     cmd.append(text)
 
-    return _run(cmd, output)
+    return _run(cmd, output, timeout)
 
-def enable_start(jail, output=None, arguments=[]):
+def enable_start(jail, output=None, arguments=[], timeout=None):
     cmd = [
         get_appjail_script(), "enable", jail, "start"
     ]
@@ -58,21 +63,21 @@ def enable_start(jail, output=None, arguments=[]):
 
         cmd.extend(["-s", f"{arg_name}={arg_val}"])
 
-    return _run(cmd, output)
+    return _run(cmd, output, timeout)
 
-def start(jail, output=None):
+def start(jail, output=None, timeout=None):
     return _run([
         get_appjail_script(), "start",
         "--", jail
-    ], output)
+    ], output, timeout)
 
-def stop(jail, output=None):
+def stop(jail, output=None, timeout=None):
     return _run([
         get_appjail_script(), "stop",
         "--", jail
-    ], output)
+    ], output, timeout)
 
-def destroy(jail, output=None, remove_recursive=False, remove_force=True):
+def destroy(jail, output=None, remove_recursive=False, remove_force=True, timeout=None):
     cmd = [
         get_appjail_script(), "jail", "destroy"
     ]
@@ -85,27 +90,27 @@ def destroy(jail, output=None, remove_recursive=False, remove_force=True):
 
     cmd.extend(["--", jail])
 
-    return _run(cmd, output)
+    return _run(cmd, output, timeout)
 
-def check(jail, output=None):
+def check(jail, output=None, timeout=None):
     if output is None:
         output = subprocess.DEVNULL
 
     return _run([
         get_appjail_script(), "jail", "get",
         "--", jail, "name"
-    ], output)
+    ], output, timeout)
 
-def status(jail, output=None):
+def status(jail, output=None, timeout=None):
     if output is None:
         output = subprocess.DEVNULL
 
     return _run([
         get_appjail_script(), "status", "-q",
         "--", jail
-    ], output)
+    ], output, timeout)
 
-def is_dirty(jail):
+def is_dirty(jail, timeout=None):
     cmd = [
         get_appjail_script(), "jail", "get",
         "--", jail, "dirty"
@@ -115,7 +120,8 @@ def is_dirty(jail):
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True
+        text=True,
+        timeout=timeout
     )
 
     if proc.returncode == 0:
@@ -123,7 +129,7 @@ def is_dirty(jail):
     else:
         return proc.returncode
 
-def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[]):
+def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[], timeout=None):
     cmd = [
         get_appjail_script(), "makejail",
         "-j", jail,
@@ -224,17 +230,42 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
 
     # Profit!
 
-    return _run(cmd, output)
+    return _run(cmd, output, timeout)
 
 def __ydict2tuple(d):
     return tuple(d.items())[0]
 
-def _run(args, output=None):
-    return subprocess.call(
+def _run(args, output=None, timeout=None):
+    env = os.environ.copy()
+    # Avoid hangings caused by git.
+    env["GIT_ASKPASS"] = "true"
+
+    proc = subprocess.Popen(
         args,
         stdout=output,
-        stderr=output
+        stderr=output,
+        stdin=subprocess.DEVNULL,
+        env=env
     )
+
+    try:
+        proc.wait(timeout)
+    except KeyboardInterrupt:
+        proc.send_signal(signal.SIGINT)
+
+        sys.exit(EX_SOFTWARE)
+    except subprocess.TimeoutExpired:
+        pass
+
+    if proc.poll() is None:
+        proc.terminate()
+
+        time.sleep(random.randint(2, 5))
+
+        if proc.poll() is None:
+            proc.kill()
+
+    return proc.returncode
 
 def get_appjail_script():
     if os.getuid() == 0:

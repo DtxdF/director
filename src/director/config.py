@@ -41,6 +41,9 @@ __DEFAULT_CONFIG__ = {
     "jails" : {
         "remove_recursive" : False,
         "remove_force" : True
+    },
+    "commands" : {
+        "timeout" : 1800
     }
 }
 
@@ -54,6 +57,9 @@ def get(*args, **kwargs):
 
 def getboolean(*args, **kwargs):
     return _get(__CONFIG__.getboolean, *args, **kwargs)
+
+def getint(*args, **kwargs):
+    return _get(__CONFIG__.getint, *args, **kwargs)
 
 def _get(func, section, key, fallback=None):
     default = _get_default(section, key, fallback)

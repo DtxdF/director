@@ -107,6 +107,16 @@ Read more details in `appjail-director --help` about which configuration files a
 
 **description**: Only valid for ZFS. Forcibly removes the jail dataset.
 
+### commands
+
+#### timeout
+
+**type**: Integer.
+
+**default**: `1800`.
+
+**description**: Timeout to avoid hangings caused by some operations such as the execution of Makejail or some custom commands in your Director file.
+
 ## Environment
 
 You can use environment variables within the Director file:
@@ -327,6 +337,10 @@ See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more detai
 #### group
 
 It has the same effect as `owner`, but for the device group.
+
+## Notes
+
+* `GIT_ASKPASS` environment variable is set to `true` to avoid hangings caused by `git(1)`.
 
 ## Contributing
 

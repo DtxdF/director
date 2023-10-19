@@ -165,6 +165,9 @@ def up(file, project, overwrite):
         remove_recursive = director.config.getboolean("jails", "remove_recursive")
         remove_force = director.config.getboolean("jails", "remove_force")
 
+        # Command timeout.
+        command_timeout = director.config.getint("commands", "timeout")
+
         do_nothing = True
 
         projectsdir = director.config.get("projects", "directory")
@@ -212,7 +215,7 @@ def up(file, project, overwrite):
                         with log.open(os.path.join(service, "stop.log")) as fd:
                             print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
 
-                            returncode = director.jail.stop(jail, fd)
+                            returncode = director.jail.stop(jail, fd, command_timeout)
 
                             if returncode == 0:
                                 print("Done.")
@@ -279,7 +282,8 @@ def up(file, project, overwrite):
 
                         returncode = director.jail.makejail(
                             jail, makejail, fd, arguments,
-                            environment, volumes, options
+                            environment, volumes, options,
+                            command_timeout
                         )
 
                         if returncode == 0:
@@ -328,7 +332,8 @@ def up(file, project, overwrite):
                                     _end = "\n"
 
                                 returncode = director.jail.cmd(
-                                    jail, text, shell, type_, fd
+                                    jail, text, shell, type_, fd,
+                                    command_timeout
                                 )
 
                                 if returncode == 0:
@@ -348,7 +353,7 @@ def up(file, project, overwrite):
                     with log.open(os.path.join(service, "start.log")) as fd:
                         print(f"Starting {service} ({jail}) ...", end=" ", flush=True)
 
-                        returncode = director.jail.start(jail, fd)
+                        returncode = director.jail.start(jail, fd, command_timeout)
 
                         if returncode == 0:
                             print("Done.")
@@ -411,6 +416,9 @@ def down(destroy, project, ignore_failed, ignore_services):
         remove_recursive = director.config.getboolean("jails", "remove_recursive")
         remove_force = director.config.getboolean("jails", "remove_force")
 
+        # Command timeout.
+        command_timeout = director.config.getint("commands", "timeout")
+
         project_obj = director.project.Project(project, basedir=projectsdir)
 
         if not os.path.isdir(project_obj.directory):
@@ -437,7 +445,7 @@ def down(destroy, project, ignore_failed, ignore_services):
 
                     print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
 
-                    returncode = director.jail.stop(jail, subprocess.DEVNULL)
+                    returncode = director.jail.stop(jail, subprocess.DEVNULL, command_timeout)
 
                     if returncode == 0:
                         print("Done.")
