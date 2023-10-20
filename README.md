@@ -115,7 +115,7 @@ Read more details in `appjail-director --help` about which configuration files a
 
 **default**: `1800`.
 
-**description**: Timeout to avoid hangings caused by some operations such as the execution of Makejail or some custom commands in your Director file.
+**description**: Timeout to avoid hangings caused by some operations such as the execution of Makejail or some custom commands in your Director file. Note that the timeout is not set when your UID is not zero, since there is no easy way for an unprivileged user to kill a privileged process, especially if `security.bsd.see_other_uids=0`.
 
 ## Environment
 
