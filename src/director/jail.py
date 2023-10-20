@@ -269,10 +269,7 @@ def _run(args, output=None, timeout=None, env=None):
     return proc.returncode
 
 def get_appjail_script():
-    if os.getuid() == 0:
-        appjail = shutil.which("appjail")
-    else:
-        appjail = shutil.which("appjail-user")
+    appjail = shutil.which("appjail")
 
     if appjail is None:
         raise AppJailScriptNotFound("AppJail script not found.")
