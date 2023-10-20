@@ -40,7 +40,7 @@ import director.default
 import director.exceptions
 from director.sysexits import *
 
-def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None):
+def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None, env=None):
     if type not in ["jexec", "local", "chroot"]:
         raise director.exceptions.InvalidCmdType(f"{type}: Invalid command type.")
 
@@ -51,9 +51,9 @@ def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None)
     cmd.extend(shlex.split(shell))
     cmd.append(text)
 
-    return _run(cmd, output, timeout)
+    return _run(cmd, output, timeout, env)
 
-def enable_start(jail, output=None, arguments=[], timeout=None):
+def enable_start(jail, output=None, arguments=[], timeout=None, env=None):
     cmd = [
         get_appjail_script(), "enable", jail, "start"
     ]
@@ -63,21 +63,21 @@ def enable_start(jail, output=None, arguments=[], timeout=None):
 
         cmd.extend(["-s", f"{arg_name}={arg_val}"])
 
-    return _run(cmd, output, timeout)
+    return _run(cmd, output, timeout, env)
 
-def start(jail, output=None, timeout=None):
+def start(jail, output=None, timeout=None, env=None):
     return _run([
         get_appjail_script(), "start",
         "--", jail
     ], output, timeout)
 
-def stop(jail, output=None, timeout=None):
+def stop(jail, output=None, timeout=None, env=None):
     return _run([
         get_appjail_script(), "stop",
         "--", jail
-    ], output, timeout)
+    ], output, timeout, env)
 
-def destroy(jail, output=None, remove_recursive=False, remove_force=True, timeout=None):
+def destroy(jail, output=None, remove_recursive=False, remove_force=True, timeout=None, env=None):
     cmd = [
         get_appjail_script(), "jail", "destroy"
     ]
@@ -92,25 +92,25 @@ def destroy(jail, output=None, remove_recursive=False, remove_force=True, timeou
 
     return _run(cmd, output, timeout)
 
-def check(jail, output=None, timeout=None):
+def check(jail, output=None, timeout=None, env=None):
     if output is None:
         output = subprocess.DEVNULL
 
     return _run([
         get_appjail_script(), "jail", "get",
         "--", jail, "name"
-    ], output, timeout)
+    ], output, timeout, env)
 
-def status(jail, output=None, timeout=None):
+def status(jail, output=None, timeout=None, env=None):
     if output is None:
         output = subprocess.DEVNULL
 
     return _run([
         get_appjail_script(), "status", "-q",
         "--", jail
-    ], output, timeout)
+    ], output, timeout, env)
 
-def is_dirty(jail, timeout=None):
+def is_dirty(jail, timeout=None, env=None):
     cmd = [
         get_appjail_script(), "jail", "get",
         "--", jail, "dirty"
@@ -121,7 +121,8 @@ def is_dirty(jail, timeout=None):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        timeout=timeout
+        timeout=timeout,
+        env=env
     )
 
     if proc.returncode == 0:
@@ -129,7 +130,11 @@ def is_dirty(jail, timeout=None):
     else:
         return proc.returncode
 
-def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[], timeout=None):
+def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[], timeout=None, env=None):
+    if env is None:
+        env = os.environ.copy()
+        env["GIT_ASKPASS"] = "true"
+
     cmd = [
         get_appjail_script(), "makejail",
         "-j", jail,
@@ -230,16 +235,12 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
 
     # Profit!
 
-    return _run(cmd, output, timeout)
+    return _run(cmd, output, timeout, env)
 
 def __ydict2tuple(d):
     return tuple(d.items())[0]
 
-def _run(args, output=None, timeout=None):
-    env = os.environ.copy()
-    # Avoid hangings caused by git.
-    env["GIT_ASKPASS"] = "true"
-
+def _run(args, output=None, timeout=None, env=None):
     proc = subprocess.Popen(
         args,
         stdout=output,
