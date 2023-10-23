@@ -130,10 +130,10 @@ def is_dirty(jail, timeout=None, env=None):
     else:
         return proc.returncode
 
-def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[], timeout=None, env=None):
-    if env is None:
-        env = os.environ.copy()
-        env["GIT_ASKPASS"] = "true"
+def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[], timeout=None, shell_env=None):
+    if shell_env is None:
+        shell_env = os.environ.copy()
+        shell_env["GIT_ASKPASS"] = "true"
 
     cmd = [
         get_appjail_script(), "makejail",
@@ -235,7 +235,7 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
 
     # Profit!
 
-    return _run(cmd, output, timeout, env)
+    return _run(cmd, output, timeout, shell_env)
 
 def __ydict2tuple(d):
     return tuple(d.items())[0]
