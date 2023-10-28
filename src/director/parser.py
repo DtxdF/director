@@ -27,6 +27,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import copy
 import re
 
 import pyaml_env
@@ -73,13 +74,13 @@ def __check_services(services):
     if not isinstance(services, dict):
         raise director.exceptions.InvalidSpec("services: Must be a Mapping.")
 
-    _services = _fix_non_str_keys(services)
+    _fix_non_str_keys(services)
 
-    for nro, name in enumerate(_services, 1):
+    for nro, name in enumerate(services, 1):
         if not re.match(r"^[a-zA-Z0-9._-]+$", name):
             raise director.exceptions.InvalidSpec(f"services ({name} / #{nro}): Service name is incorrect.")
 
-        service = _services[name]
+        service = services[name]
 
         if not isinstance(service, dict):
             raise director.exceptions.InvalidSpec(f"services/{name} (#{nro}): Must be a Mapping.")
@@ -162,7 +163,6 @@ def __check_service(service, name, nro):
     scripts = service.get("scripts")
 
     if scripts is not None:
-        service["scripts"] = _fix_non_str_list(scripts)
         __check_scripts(service["scripts"], name)
 
     start = service.get("start")
@@ -179,10 +179,10 @@ def __check_volumes(volumes):
     if not isinstance(volumes, dict):
         raise director.exceptions.InvalidSpec("volumes: Must be a Mapping.")
 
-    _volumes = _fix_non_str_keys(volumes)
+    _fix_non_str_keys(volumes)
 
-    for nro, name in enumerate(_volumes, 1):
-        volume = _volumes[name]
+    for nro, name in enumerate(volumes, 1):
+        volume = volumes[name]
 
         if not isinstance(volume, dict):
             raise director.exceptions.InvalidSpec(f"volumes/{name} (#{nro}): Must be a Mapping.")
@@ -266,11 +266,11 @@ def __check_scripts(scripts, name):
     if not isinstance(scripts, list):
         raise director.exceptions.InvalidSpec(f"scripts: Must be a List.")
 
-    _scripts = _fix_non_str_keys(scripts)
-
-    for nro, script in enumerate(_scripts, 1):
+    for nro, script in enumerate(scripts, 1):
         if not isinstance(script, dict):
             raise director.exceptions.InvalidSpec(f"scripts (#{nro}): Must be a Mapping.")
+
+        _fix_non_str_keys(script)
 
         __check_script(script, name, nro)
 
@@ -287,7 +287,7 @@ def __check_script(script, name, nro):
 
     shell = script.get("shell")
 
-    if not isinstance(shell, str):
+    if shell is not None and not isinstance(shell, str):
         shell = str(shell)
 
         script["shell"] = shell
@@ -349,14 +349,9 @@ def _fix_non_str_list(data, name, allow_none=True):
     return l
 
 def _fix_non_str_keys(data):
-    _data = {}
+    _data = copy.deepcopy(data)
 
-    for name in data:
-        if isinstance(name, str):
-            _name = name
-        else:
-            _name = str(name)
-
-        _data[_name] = data[name]
-
-    return _data
+    for name in _data:
+        if not isinstance(name, str):
+            data[str(name)] = _data[name]
+            data.pop(name)
