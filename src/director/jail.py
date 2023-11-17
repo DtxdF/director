@@ -235,12 +235,12 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
 
     # Profit!
 
-    return _run(cmd, output, timeout, shell_env)
+    return _run(cmd, output, timeout, shell_env, jail)
 
 def __ydict2tuple(d):
     return tuple(d.items())[0]
 
-def _run(args, output=None, timeout=None, env=None):
+def _run(args, output=None, timeout=None, env=None, jail=None):
     if os.getuid() != 0:
         timeout = None
 
@@ -257,9 +257,15 @@ def _run(args, output=None, timeout=None, env=None):
     try:
         proc.wait(timeout)
     except KeyboardInterrupt:
-        proc.send_signal(signal.SIGINT)
+        if jail is None:
+            sys.exit(0)
+        else:
+            returncode = status(jail, timeout=timeout)
 
-        sys.exit(EX_SOFTWARE)
+            if returncode == 0:
+                returncode = stop(jail, subprocess.DEVNULL, timeout)
+
+            sys.exit(returncode)
     except subprocess.TimeoutExpired:
         timeout_expired = True
 
