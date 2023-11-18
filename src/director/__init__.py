@@ -31,9 +31,11 @@ import atexit
 import os
 import pathlib
 import shutil
+import signal
 import subprocess
 import sys
 import traceback
+from signal import SIGINT, SIGQUIT, SIGTERM
 
 import click
 import dotenv
@@ -44,6 +46,8 @@ import director.jail
 import director.log
 import director.project
 from director.sysexits import *
+
+CURRENT_JAIL = None
 
 @click.group()
 @click.help_option()
@@ -142,6 +146,9 @@ def up(file, project, overwrite):
     remove_recursive options specified from the configuration file determine the
     behavior of this action. 
     """
+
+    for signum in (SIGINT, SIGQUIT, SIGTERM):
+        signal.signal(signum, stop_jail_handler)
 
     if project is None:
         project = _get_project_name_from_env(director.project.generate_random_name())
@@ -248,6 +255,8 @@ def up(file, project, overwrite):
             for service_dict in sorted(order, key=lambda s: s["priority"]):
                 service = service_dict["service"]
                 jail = project_obj.get_jail_name(service)
+
+                set_current_jail(jail)
 
                 if director.jail.check(jail) != 0 or \
                         director.jail.is_dirty(jail) != 0:
@@ -376,6 +385,29 @@ def up(file, project, overwrite):
         sys.exit(EX_SOFTWARE)
 
     sys.exit(EX_OK)
+
+def stop_jail_handler(*args, **kwargs):
+    if CURRENT_JAIL is None:
+        sys.exit(0)
+
+    try:
+        timeout = director.config.getint("commands", "timeout")
+    except Exception as err:
+        print_err(err)
+
+        sys.exit(EX_CONFIG)
+
+    returncode = director.jail.status(CURRENT_JAIL, timeout=timeout)
+
+    if returncode == 0:
+        returncode = director.jail.stop(CURRENT_JAIL, subprocess.DEVNULL, timeout)
+
+    sys.exit(returncode)
+
+def set_current_jail(jail):
+    global CURRENT_JAIL
+
+    CURRENT_JAIL = jail
 
 @cli.command(short_help="Stop and/or destroy a project")
 @click.help_option()
@@ -667,12 +699,16 @@ def _get_project_name_from_env(default=None):
 
 def _catch(log, err):
     with log.open("exception.log") as fd:
-        print("Exception:")
-        print("", "type:", err.__class__.__name__, file=sys.stderr)
+        print_err(err)
+
         print("", "file:", fd.name, file=sys.stderr)
-        print("", "error:", err, file=sys.stderr)
 
         traceback.print_exc(file=fd)
+
+def print_err(err):
+        print("Exception:")
+        print("", "type:", err.__class__.__name__, file=sys.stderr)
+        print("", "error:", err, file=sys.stderr)
 
 if __name__ == "__main__":
     cli()
