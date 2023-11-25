@@ -147,8 +147,7 @@ def up(file, project, overwrite):
     behavior of this action. 
     """
 
-    for signum in (SIGINT, SIGQUIT, SIGTERM):
-        signal.signal(signum, stop_jail_handler)
+    enable_stop_jail_handler()
 
     if project is None:
         project = _get_project_name_from_env(director.project.generate_random_name())
@@ -390,6 +389,8 @@ def stop_jail_handler(*args, **kwargs):
     if CURRENT_JAIL is None:
         sys.exit(0)
 
+    disable_stop_jail_handler()
+
     try:
         timeout = director.config.getint("commands", "timeout")
     except Exception as err:
@@ -403,6 +404,14 @@ def stop_jail_handler(*args, **kwargs):
         returncode = director.jail.stop(CURRENT_JAIL, subprocess.DEVNULL, timeout)
 
     sys.exit(returncode)
+
+def enable_stop_jail_handler():
+    for signum in (SIGINT, SIGQUIT, SIGTERM):
+        signal.signal(signum, stop_jail_handler)
+
+def disable_stop_jail_handler():
+    for signum in (SIGINT, SIGQUIT, SIGTERM):
+        signal.signal(signum, signal.SIG_IGN)
 
 def set_current_jail(jail):
     global CURRENT_JAIL
