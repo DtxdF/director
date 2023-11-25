@@ -258,12 +258,16 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
         proc.wait(timeout)
     except KeyboardInterrupt:
         if jail is None:
+            proc.terminate()
+
             sys.exit(0)
         else:
             returncode = status(jail, timeout=timeout)
 
             if returncode == 0:
                 returncode = stop(jail, subprocess.DEVNULL, timeout)
+
+            proc.terminate()
 
             sys.exit(returncode)
     except subprocess.TimeoutExpired:
