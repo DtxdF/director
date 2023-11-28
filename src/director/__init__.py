@@ -396,14 +396,26 @@ def stop_jail_handler(*args, **kwargs):
     except Exception as err:
         print_err(err)
 
-        sys.exit(EX_CONFIG)
+        # fallback
+        timeout = director.config.__DEFAULT_CONFIG__.get("commands", "timeout")
 
-    returncode = director.jail.status(CURRENT_JAIL, timeout=timeout)
+    if director.jail.status(CURRENT_JAIL, timeout=timeout) == 0:
+        director.jail.stop(CURRENT_JAIL, subprocess.DEVNULL, timeout)
+    
+    for proc in director.jail.LAST_PROC:
+        if proc.poll() is not None:
+            continue
 
-    if returncode == 0:
-        returncode = director.jail.stop(CURRENT_JAIL, subprocess.DEVNULL, timeout)
+        proc.terminate()
 
-    sys.exit(returncode)
+        try:
+            proc.wait(timeout)
+        except subprocess.TimeoutExpired:
+            pass # ignore
+        except Exception as err:
+            print_err(err)
+
+    sys.exit(EX_SOFTWARE)
 
 def enable_stop_jail_handler():
     for signum in (SIGINT, SIGQUIT, SIGTERM):

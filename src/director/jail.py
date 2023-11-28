@@ -39,6 +39,8 @@ import director.default
 import director.exceptions
 from director.sysexits import *
 
+LAST_PROC = []
+
 def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None, env=None):
     if type not in ["jexec", "local", "chroot"]:
         raise director.exceptions.InvalidCmdType(f"{type}: Invalid command type.")
@@ -247,6 +249,8 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
         stdin=subprocess.DEVNULL,
         env=env
     )
+
+    LAST_PROC.append(proc)
 
     timeout_expired = False
 
