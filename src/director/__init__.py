@@ -35,7 +35,17 @@ import signal
 import subprocess
 import sys
 import traceback
-from signal import SIGINT, SIGQUIT, SIGTERM
+from signal import (SIGALRM,
+                   SIGVTALRM,
+                   SIGPROF,
+                   SIGUSR1,
+                   SIGUSR2,
+                   SIGHUP,
+                   SIGINT,
+                   SIGQUIT,
+                   SIGTERM,
+                   SIGXCPU,
+                   SIGXFSZ)
 
 import click
 import dotenv
@@ -48,6 +58,10 @@ import director.project
 from director.sysexits import *
 
 CURRENT_JAIL = None
+
+# Signals.
+IGNORED_SIGNALS = (SIGALRM, SIGVTALRM, SIGPROF, SIGUSR1, SIGUSR2)
+HANDLER_SIGNALS = (SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGXCPU, SIGXFSZ)
 
 @click.group()
 @click.help_option()
@@ -147,6 +161,7 @@ def up(file, project, overwrite):
     behavior of this action. 
     """
 
+    ignore_other_signals()
     enable_stop_jail_handler()
 
     if project is None:
@@ -418,11 +433,15 @@ def stop_jail_handler(*args, **kwargs):
     sys.exit(EX_SOFTWARE)
 
 def enable_stop_jail_handler():
-    for signum in (SIGINT, SIGQUIT, SIGTERM):
+    for signum in HANDLER_SIGNALS:
         signal.signal(signum, stop_jail_handler)
 
 def disable_stop_jail_handler():
-    for signum in (SIGINT, SIGQUIT, SIGTERM):
+    for signum in HANDLER_SIGNALS:
+        signal.signal(signum, signal.SIG_IGN)
+
+def ignore_other_signals():
+    for signum in IGNORED_SIGNALS:
         signal.signal(signum, signal.SIG_IGN)
 
 def set_current_jail(jail):
