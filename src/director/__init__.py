@@ -406,7 +406,7 @@ def stop_jail_handler(*args, **kwargs):
         if proc.poll() is not None:
             continue
 
-        proc.terminate()
+        director.jail._terminate(proc.pid)
 
         try:
             proc.wait(timeout)

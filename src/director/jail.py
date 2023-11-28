@@ -258,7 +258,7 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
         proc.wait(timeout)
     except KeyboardInterrupt:
         if jail is None:
-            proc.terminate()
+            _terminate(proc.pid)
 
             return proc.returncode if proc.returncode != 0 else EX_SOFTWARE
         else:
@@ -267,13 +267,13 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
             if returncode == 0:
                 returncode = stop(jail, subprocess.DEVNULL, timeout)
 
-            proc.terminate()
+            _terminate(proc.pid)
 
             return returncode
     except subprocess.TimeoutExpired:
         timeout_expired = True
 
-        proc.terminate()
+        _terminate(proc.pid)
 
     returncode = proc.returncode
 
@@ -281,6 +281,9 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
         returncode = EX_SOFTWARE
 
     return returncode
+
+def _terminate(pid):
+    return subprocess.call([get_appjail_script(), "cmd", "jaildir", "kill", "--", f"{pid}"])
 
 def get_appjail_script():
     appjail = shutil.which("appjail")
