@@ -241,9 +241,6 @@ def __ydict2tuple(d):
     return tuple(d.items())[0]
 
 def _run(args, output=None, timeout=None, env=None, jail=None):
-    if os.getuid() != 0:
-        timeout = None
-
     proc = subprocess.Popen(
         args,
         stdout=output,
@@ -260,7 +257,7 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
         if jail is None:
             proc.terminate()
 
-            sys.exit(0)
+            return proc.returncode if proc.returncode != 0 else EX_SOFTWARE
         else:
             returncode = status(jail, timeout=timeout)
 
@@ -269,22 +266,16 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
 
             proc.terminate()
 
-            sys.exit(returncode)
+            return returncode
     except subprocess.TimeoutExpired:
         timeout_expired = True
 
-    if proc.poll() is None:
         proc.terminate()
-
-        time.sleep(random.randint(2, 5))
-
-        if proc.poll() is None:
-            proc.kill()
 
     returncode = proc.returncode
 
     if timeout_expired and returncode == 0:
-        returncode = -1
+        returncode = EX_SOFTWARE
 
     return returncode
 
