@@ -113,7 +113,7 @@ class Project(director.keys.Key):
         if self.locked():
             lockfile = self.get_keyfile("lock")
 
-            raise director.exceptions.ProjectLocked(f"{self.name}: Project locked. Run `rm -f {lockfile}`" \
+            raise director.exceptions.ProjectLocked(f"{self.name}: Project locked. Run `rm -f {lockfile}` " \
                     "if you are sure that no other process is locking this project.")
 
         self.set_key("lock", "")
