@@ -120,14 +120,24 @@ def is_dirty(jail, timeout=None, env=None):
     proc = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.DEVNULL,
         text=True,
         timeout=timeout,
         env=env
     )
 
-    if proc.returncode == 0:
-        return int(proc.stdout)
+    if proc.stdout is None:
+        return -1
+
+    stdout = proc.stdout.strip()
+
+    if stdout == "":
+        return -1
+
+    if stdout == "0":
+        return 0
+    elif stdout == "1":
+        return 1
     else:
         return proc.returncode
 
