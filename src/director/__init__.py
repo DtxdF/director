@@ -491,17 +491,18 @@ def down(destroy, project, ignore_failed, ignore_services):
         # Command timeout.
         command_timeout = director.config.getint("commands", "timeout")
 
+        # We cannot use a context manager because it calls the .open() method which fails
+        # since no `director` file has been defined.
         project_obj = director.project.Project(project, basedir=projectsdir)
 
         if not os.path.isdir(project_obj.directory):
             print(f"{project}: Project not found.", file=sys.stderr)
             sys.exit(EX_NOINPUT)
 
-        # We cannot use a context manager because it calls the .open() method which fails
-        # since no `director` file has been defined.
+        project_obj.lock()
+
         atexit.register(project_obj.unlock)
 
-        project_obj.lock()
         project_obj.set_state(director.project.STATE_DESTROYING)
 
         if not ignore_services:
