@@ -163,7 +163,7 @@ class Project(director.keys.Key):
     def set_fail(self, service):
         self.set_key(f"{service}/fail", "")
 
-    def get_jail_name(self, service_name, where="both"):
+    def get_jail_name(self, service_name, where="both", cached=True):
         if where != "next" and where != "current" and \
                 where != "both":
             raise ValueError(f"{where}: Invalid option.")
@@ -181,8 +181,10 @@ class Project(director.keys.Key):
         if service is None:
             self.__raise_ServiceNotFound(service_name)
 
-        jail = self.get_key(f"{service_name}/name") or \
-                service.get("name")
+        if cached:
+            jail = self.get_key(f"{service_name}/name", service.get("name"))
+        else:
+            jail = service.get("name")
 
         if jail is None:
             jail = generate_random_name()

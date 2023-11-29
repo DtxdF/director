@@ -268,7 +268,8 @@ def up(file, project, overwrite):
             # Create.
             for service_dict in sorted(order, key=lambda s: s["priority"]):
                 service = service_dict["service"]
-                jail = project_obj.get_jail_name(service)
+
+                jail = project_obj.get_jail_name(service, cached=False)
 
                 set_current_jail(jail)
 
