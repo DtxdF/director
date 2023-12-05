@@ -270,7 +270,10 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
         if jail is None:
             _terminate(proc.pid)
 
-            return proc.returncode if proc.returncode != 0 else EX_SOFTWARE
+            if proc.returncode is None or proc.returncode == 0:
+                return EX_SOFTWARE
+            else:
+                return proc.returncode
         else:
             returncode = status(jail, timeout=timeout)
 
