@@ -293,7 +293,9 @@ def _run(args, output=None, timeout=None, env=None, jail=None):
     return returncode
 
 def _terminate(pid):
-    return subprocess.call([get_appjail_script(), "cmd", "jaildir", "kill", "--", f"{pid}"])
+    return subprocess.call([get_appjail_script(), "cmd", "jaildir", "kill", "--", f"{pid}"],
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
 
 def get_appjail_script():
     appjail = shutil.which("appjail")
