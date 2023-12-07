@@ -269,7 +269,28 @@ def up(file, project, overwrite):
             for service_dict in sorted(order, key=lambda s: s["priority"]):
                 service = service_dict["service"]
 
-                jail = project_obj.get_jail_name(service, cached=False)
+                use_random_name = False
+
+                try:
+                    last_jname = project_obj.get_jail_name(service, where="current")
+                except director.exceptions.ServiceNotFound:
+                    last_jname = None
+                    use_random_name = True
+
+                try:
+                    next_jname = project_obj.get_jail_name(service,
+                                                           where="next",
+                                                           random_name=use_random_name,
+                                                           cached=False)
+                except director.exceptions.ServiceNotFound:
+                    next_jname = None
+
+                if next_jname is None:
+                    jail = last_jname
+                elif next_jname != last_jname:
+                    jail = next_jname
+                else:
+                    jail = next_jname
 
                 set_current_jail(jail)
 
