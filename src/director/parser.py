@@ -99,6 +99,7 @@ def __check_service(service, name, nro):
         "options",
         "arguments",
         "environment",
+        "start-environment",
         "volumes",
         "scripts",
         "start",
@@ -154,6 +155,11 @@ def __check_service(service, name, nro):
 
     if environment is not None:
         service["environment"] = _fix_non_str_list(environment, f"{_id}/environment")
+
+    start_environment = service.get("start-environment")
+
+    if start_environment is not None:
+        service["start-environment"] = _fix_non_str_list(start_environment, f"{_id}/start-environment")
 
     volumes = service.get("volumes")
 

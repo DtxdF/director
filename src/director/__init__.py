@@ -398,7 +398,10 @@ def up(file, project, overwrite):
                     with log.open(os.path.join(service, "start.log")) as fd:
                         print(f"Starting {service} ({jail}) ...", end=" ", flush=True)
 
-                        returncode = director.jail.start(jail, fd, command_timeout)
+                        returncode = director.jail.start(
+                            jail, fd, command_timeout,
+                            mk_env=project_obj.get_start_environment(service)
+                        )
 
                         if returncode == 0:
                             print("Done.")

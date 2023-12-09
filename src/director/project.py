@@ -256,6 +256,9 @@ class Project(director.keys.Key):
     def get_environment(self, service, next=True):
         return self.__get_service(service, next).get("environment", [])
 
+    def get_start_environment(self, service, next=True):
+        return self.__get_service(service, next).get("start-environment", [])
+
     def get_makejail(self, service, next=True):
         return self.__get_service(service, next).get("makejail", director.default.MAKEJAIL)
 

@@ -220,6 +220,12 @@ It has the same effect as the global `options`, but only for the services in whi
 
 **description**: Environment variables valid only in the `build` stage.
 
+#### start-environment
+
+**type**: Array of dictionaries. Each dictionary (key and value) is a string. The value can be left empty.
+
+**description**: Environment variables valid only in the `start` stage.
+
 #### volumes
 
 **type**: Array of dictionaries. Each dictionary (key and value) is a string.

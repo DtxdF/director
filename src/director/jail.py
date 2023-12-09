@@ -66,11 +66,22 @@ def enable_start(jail, output=None, arguments=[], timeout=None, env=None):
 
     return _run(cmd, output, timeout, env)
 
-def start(jail, output=None, timeout=None, env=None):
-    return _run([
-        get_appjail_script(), "start",
-        "--", jail
-    ], output, timeout)
+def start(jail, output=None, timeout=None, env=None, mk_env=[]):
+    cmd = [
+        get_appjail_script(), "start"
+    ]
+
+    for env_var in mk_env:
+        env_key, env_val = __ydict2tuple(env_var)
+
+        if env_val is None:
+            cmd.extend(["-V", env_key])
+        else:
+            cmd.extend(["-V", f"{env_key}={env_val}"])
+
+    cmd.extend(["--", jail])
+
+    return _run(cmd, output, timeout)
 
 def stop(jail, output=None, timeout=None, env=None):
     return _run([
