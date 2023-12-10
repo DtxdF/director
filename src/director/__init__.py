@@ -339,15 +339,18 @@ def up(file, project, overwrite):
                             project_obj.set_fail(service)
                             sys.exit(returncode)
 
-                    # Start arguments.
+                    # Start arguments & environment.
 
                     start_arguments = project_obj.get_start_arguments(service)
+                    start_environment = project_obj.get_start_environment(service)
 
-                    if start_arguments:
+                    if start_arguments or start_environment:
                         with log.open(os.path.join(service, "enable-start.log")) as fd:
                             print("", "- Setting up start arguments ...", end=" ", flush=True)
 
-                            returncode = director.jail.enable_start(jail, fd, start_arguments)
+                            returncode = director.jail.enable_start(jail, fd,
+                                                                    start_arguments,
+                                                                    start_environment)
 
                             if returncode == 0:
                                 print("Done.")
@@ -399,8 +402,7 @@ def up(file, project, overwrite):
                         print(f"Starting {service} ({jail}) ...", end=" ", flush=True)
 
                         returncode = director.jail.start(
-                            jail, fd, command_timeout,
-                            mk_env=project_obj.get_start_environment(service)
+                            jail, fd, command_timeout
                         )
 
                         if returncode == 0:

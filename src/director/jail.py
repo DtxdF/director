@@ -54,7 +54,7 @@ def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None,
 
     return _run(cmd, output, timeout, env)
 
-def enable_start(jail, output=None, arguments=[], timeout=None, env=None):
+def enable_start(jail, output=None, arguments=[], environment=[], timeout=None, shell_env=None):
     cmd = [
         get_appjail_script(), "enable", jail, "start"
     ]
@@ -64,24 +64,18 @@ def enable_start(jail, output=None, arguments=[], timeout=None, env=None):
 
         cmd.extend(["-s", f"{arg_name}={arg_val}"])
 
-    return _run(cmd, output, timeout, env)
+    for env_var in environment:
+        env_name, env_val = __ydict2tuple(env_var)
 
-def start(jail, output=None, timeout=None, env=None, mk_env=[]):
-    cmd = [
-        get_appjail_script(), "start"
-    ]
+        cmd.extend(["-V", f"{env_name}={env_val}"])
 
-    for env_var in mk_env:
-        env_key, env_val = __ydict2tuple(env_var)
+    return _run(cmd, output, timeout, shell_env)
 
-        if env_val is None:
-            cmd.extend(["-V", env_key])
-        else:
-            cmd.extend(["-V", f"{env_key}={env_val}"])
-
-    cmd.extend(["--", jail])
-
-    return _run(cmd, output, timeout)
+def start(jail, output=None, timeout=None, env=None):
+    return _run([
+        get_appjail_script(), "start",
+        "--", jail
+    ], output, timeout, env)
 
 def stop(jail, output=None, timeout=None, env=None):
     return _run([
