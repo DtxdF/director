@@ -163,6 +163,9 @@ class Project(director.keys.Key):
     def set_fail(self, service):
         self.set_key(f"{service}/fail", "")
 
+    def set_done(self, service):
+        self.unset_key(f"{service}/fail")
+
     def get_jail_name(self, service_name, where="both", random_name=True, cached=True):
         if where != "next" and where != "current" and \
                 where != "both":

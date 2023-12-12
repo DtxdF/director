@@ -413,6 +413,8 @@ def up(file, project, overwrite):
                             project_obj.set_fail(service)
                             sys.exit(returncode)
 
+                project_obj.set_done(service)
+
             # Done.
             project_obj.set_state(director.project.STATE_DONE)
 
