@@ -172,6 +172,7 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
     if volumes:
         jail_volumes = volumes[0]
         global_volumes = volumes[1]
+        default_volume_type = volumes[2]
 
         for jail_volume in jail_volumes:
             name, mountpoint = __ydict2tuple(jail_volume)
@@ -182,7 +183,7 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
                 raise director.exceptions.VolumeNotFound(f"{name}: Volume not found.")
 
             device = volume["device"]
-            type_ = volume.get("type", director.default.FSTAB_TYPE)
+            type_ = volume.get("type", default_volume_type)
 
             if type_ == "nullfs" or type_ == "<pseudofs>":
                 umask = volume.get("umask")

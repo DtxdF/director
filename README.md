@@ -276,6 +276,12 @@ It has the same effect as the global `options`, but only for the services in whi
 
 **description**: Director detects changes to re-run the Makejail, this item forces the execution of the Makejail.
 
+### default\_volume\_type
+
+**type**: String.
+
+**description**: Default volume type when `type` is not defined in `volumes/{volume}`.
+
 ### volumes
 
 **type**: Dictionary.

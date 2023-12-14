@@ -48,7 +48,8 @@ def validate(document):
     allowed_keys = (
         "options",
         "services",
-        "volumes"
+        "default_volume_type",
+        "volumes",
     )
 
     __check_allowed_key(allowed_keys, "<main>", document)
@@ -64,6 +65,14 @@ def validate(document):
         raise director.exceptions.InvalidSpec("services: Required but not defined.")
     else:
         __check_services(services)
+
+    default_volume_type = document.get("default_volume_type")
+
+    if default_volume_type is not None:
+        if not isinstance(default_volume_type, str):
+            default_volume_type = str(default_volume_type)
+
+            document["default_volume_type"] = default_volume_type
 
     volumes = document.get("volumes")
 

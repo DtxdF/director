@@ -311,7 +311,9 @@ def up(file, project, overwrite):
 
                     volumes = (
                         project_obj.get_jail_volumes(service),
-                        global_volumes
+                        global_volumes,
+                        project_obj.get_default_volume_type() or \
+                                director.default.FSTAB_TYPE
                     )
 
                     makejail = project_obj.get_makejail(service)

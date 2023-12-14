@@ -236,6 +236,11 @@ class Project(director.keys.Key):
 
         return current_options != next_options
 
+    def get_default_volume_type(self, next=True):
+        spec = self.__get_spec(next)
+
+        return spec.get("default_volume_type")
+
     def get_priority(self, service, next=True):
         return self.__get_service(service, next).get("priority", director.default.PRIORITY)
 
