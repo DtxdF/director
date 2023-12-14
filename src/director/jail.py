@@ -185,7 +185,9 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
             device = volume["device"]
             type_ = volume.get("type", default_volume_type)
 
-            if type_ == "nullfs" or type_ == "<pseudofs>":
+            if type_ == "nullfs" or \
+                    type_ == "<pseudofs>" or \
+                    type_ == "<volumefs>":
                 umask = volume.get("umask")
 
                 old_umask = None

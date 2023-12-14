@@ -300,7 +300,7 @@ It has the same effect as the global `options`, but only for the services in whi
 
 **default**: `<pseudofs>`.
 
-**description**: Type of the file system. When using `nullfs` or `<pseudofs>`, `device` is treated as a directory and after getting the absolute path it will be used as the actual `device`.
+**description**: Type of the file system. When using `nullfs`, `<pseudofs>` or `<volumefs>`, `device` is treated as a directory and after getting the absolute path it will be used as the actual `device`.
 
 See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more details about the pseudo-filesystem.
 
@@ -332,19 +332,19 @@ See [AppJail#pseudofs](https://github.com/DtxdF/AppJail#pseudofs) for more detai
 
 **type**: Integer.
 
-**description**: Valid only for `nullfs` and `<pseudofs>` file systems. When defined the umask is set before the creation of the directory (aka device) and is restored after the directory is created.
+**description**: Valid only for `nullfs`, `<pseudofs>` and `<volumefs>` file systems. When defined the umask is set before the creation of the directory (aka device) and is restored after the directory is created.
 
 #### mode
 
 **type**: Integer.
 
-**description**: Valid only for `nullfs` and `<pseudofs>` file systems. Change the access permissions of the directory (aka device) after its creation.
+**description**: Valid only for `nullfs`, `<pseudofs>` and `<volumefs>` file systems. Change the access permissions of the directory (aka device) after its creation.
 
 #### owner
 
 **type**: Integer or String.
 
-**description**: Valid only for `nullfs` and `<pseudofs>` file systems. When defined the directory owner is set after the creation of the directory (aka device). Note that if you use a string instead of an integer, it will be resolved from your local user database.
+**description**: Valid only for `nullfs`, `<pseudofs>` and `<volumefs>` file systems. When defined the directory owner is set after the creation of the directory (aka device). Note that if you use a string instead of an integer, it will be resolved from your local user database.
 
 #### group
 
