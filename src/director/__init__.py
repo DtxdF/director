@@ -539,7 +539,16 @@ def down(destroy, project, ignore_failed, ignore_services):
         if not ignore_services:
             services = project_obj.get_services(next=False)
 
+            order = []
+
             for service in services:
+                order.append({
+                    "priority" : project_obj.get_priority(service, next=False),
+                    "service" : service
+                })
+
+            for service_dict in sorted(order, key=lambda s: s["priority"], reverse=True):
+                service = service_dict["service"]
                 jail = project_obj.get_jail_name(service, where="current")
 
                 status = director.jail.status(jail)
