@@ -63,7 +63,7 @@ By default, `~/.director` is used as the base directory, so every file generated
 
 ## Ephemeral concept
 
-Director treats each jail as ephemeral. This does not mean that your jails will not persist after you stop them or your system restarts, what it means is that Director assumes that it is safe to destroy the jails since you have clearly separated the data that needs to persist or you do not need such data to persist.
+Director treats each jail as ephemeral. This does not mean that your jails will not persist after you stop them or restart your system, what it means is that Director assumes that it is safe to destroy the jails since you have clearly separated the data that should be persisted from the data considered ephemeral.
 
 ## Configuration file
 
