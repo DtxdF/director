@@ -28,6 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import atexit
+import json
 import os
 import pathlib
 import shutil
@@ -769,6 +770,79 @@ def info(project):
 
         sys.exit(EX_SOFTWARE)
     
+    sys.exit(EX_OK)
+
+@cli.command(short_help="Show information about a project in JSON format")
+@click.help_option()
+@click.option("-p", "--project", help="Project name.")
+def describe(project):
+    """
+    Like `info` but in JSON format.
+    """
+
+    if project is None:
+        project = _get_project_name_from_env()
+
+        if project is None:
+            __project_name_not_specified()
+            sys.exit(EX_DATAERR)
+
+    log = director.log.Log(
+        basedir=director.config.get("logs", "directory")
+    )
+
+    try:
+        projectsdir = director.config.get("projects", "directory")
+
+        project_obj = director.project.Project(project, basedir=projectsdir)
+
+        if not os.path.isdir(project_obj.directory):
+            print(f"{project}: Project not found.", file=sys.stderr)
+            sys.exit(EX_NOINPUT)
+
+        state = project_obj.get_state()
+
+        # Fallback.
+        if state is None:
+            state = director.project.STATES[director.project.STATE_UNFINISHED]
+
+        # This looks better.
+        state = state.upper()
+
+        last_log = project_obj.get_key("last_log") or None
+
+        if project_obj.locked():
+            locked = True
+        else:
+            locked = True
+
+        output = {
+            "name" : project,
+            "state" : state,
+            "last_log" : last_log,
+            "locked" : locked,
+            "services" : []
+        }
+
+        services = project_obj.get_services(next=False)
+
+        for service in services:
+            jail = project_obj.get_jail_name(service, where="current")
+
+            status = director.jail.status(jail)
+
+            output["services"].append({
+                "name" : service,
+                "status" : status,
+                "jail" : jail
+            })
+    except Exception as err:
+        _catch(log, err)
+
+        sys.exit(EX_SOFTWARE)
+    
+    print(json.dumps(output, indent=2))
+
     sys.exit(EX_OK)
 
 def __project_name_not_specified():
