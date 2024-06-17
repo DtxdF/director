@@ -845,6 +845,39 @@ def describe(project):
 
     sys.exit(EX_OK)
 
+@cli.command(short_help="Check if a project exists")
+@click.help_option()
+@click.option("-p", "--project", help="Project name.")
+def check(project):
+    """
+    Returns 0 if a project exists or non-zero if it does not exist.
+    """
+
+    if project is None:
+        project = _get_project_name_from_env()
+
+        if project is None:
+            __project_name_not_specified()
+            sys.exit(EX_DATAERR)
+
+    log = director.log.Log(
+        basedir=director.config.get("logs", "directory")
+    )
+
+    try:
+        projectsdir = director.config.get("projects", "directory")
+
+        project_obj = director.project.Project(project, basedir=projectsdir)
+
+        if not os.path.isdir(project_obj.directory):
+            sys.exit(EX_NOINPUT)
+    except Exception as err:
+        _catch(log, err)
+
+        sys.exit(EX_SOFTWARE)
+
+    sys.exit(EX_OK)
+
 def __project_name_not_specified():
     print("The project name is not specified, use `--project` or", file=sys.stderr)
     print("set the `DIRECTOR_PROJECT` environment variable.", file=sys.stderr)
