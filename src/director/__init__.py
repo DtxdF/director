@@ -894,9 +894,9 @@ def _catch(log, err):
         traceback.print_exc(file=fd)
 
 def print_err(err):
-        print("Exception:")
-        print("", "type:", err.__class__.__name__, file=sys.stderr)
-        print("", "error:", err, file=sys.stderr)
+    print("Exception:")
+    print("", "type:", err.__class__.__name__, file=sys.stderr)
+    print("", "error:", err, file=sys.stderr)
 
 if __name__ == "__main__":
     cli()
