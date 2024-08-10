@@ -40,7 +40,7 @@ volumes:
 **Bleeding-edge version**:
 
 ```sh
-pkg install -y py39-pipx
+pkg install -y py311-pipx
 pipx install git+https://github.com/DtxdF/director.git
 appjail-director --help
 ```
@@ -48,7 +48,7 @@ appjail-director --help
 **Stable version**:
 
 ```sh
-pkg install -y py39-director
+pkg install -y py311-director
 ```
 
 **Note**: Remember to add `~/.local/bin` to `PATH`.
