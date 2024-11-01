@@ -45,13 +45,13 @@ pipx install git+https://github.com/DtxdF/director.git
 appjail-director --help
 ```
 
+**Note**: Remember to add `~/.local/bin` to `PATH`.
+
 **Stable version**:
 
 ```sh
 pkg install -y py311-director
 ```
-
-**Note**: Remember to add `~/.local/bin` to `PATH`.
 
 [AppJail](https://appjail.readthedocs.io/en/latest/install) must be installed before using Director.
 
