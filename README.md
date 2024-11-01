@@ -53,7 +53,7 @@ pkg install -y py311-director
 
 **Note**: Remember to add `~/.local/bin` to `PATH`.
 
-[AppJail](https://github.com/DtxdF/AppJail#installation) must be installed before using Director.
+[AppJail](https://appjail.readthedocs.io/en/latest/install) must be installed before using Director.
 
 ### Note about non-root users
 
