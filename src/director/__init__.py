@@ -360,6 +360,59 @@ def up(file, project, overwrite):
                             else:
                                 print("FAIL!")
 
+                    # OCI
+                    oci = project_obj.get_oci(service)
+
+                    if oci:
+                        oci_user = oci.get("user")
+
+                        if oci_user is not None:
+                            with log.open(os.path.join(service, "oci-user.log")) as fd:
+                                print("", "- Configuring the user (OCI) ...", end=" ", flush=True)
+
+                                returncode = director.jail.oci_set_user(jail, oci_user, fd)
+
+                                if returncode == 0:
+                                    print("Done.")
+                                else:
+                                    print("FAIL!")
+                                    project_obj.set_state(director.project.STATE_FAILED)
+                                    project_obj.set_fail(service)
+                                    sys.exit(returncode)
+
+                        oci_workdir = oci.get("workdir")
+
+                        if oci_workdir is not None:
+                            with log.open(os.path.join(service, "oci-workdir.log")) as fd:
+                                print("", "- Configuring the working directory (OCI) ...", end=" ", flush=True)
+
+                                returncode = director.jail.oci_set_workdir(jail, oci_workdir, fd)
+
+                                if returncode == 0:
+                                    print("Done.")
+                                else:
+                                    print("FAIL!")
+                                    project_obj.set_state(director.project.STATE_FAILED)
+                                    project_obj.set_fail(service)
+                                    sys.exit(returncode)
+
+                        oci_environment = oci.get("environment")
+
+                        if oci_environment:
+                            with log.open(os.path.join(service, "oci-environment.log")) as fd:
+                                print("", "- Configuring the environment (OCI) ...", end=" ", flush=True)
+
+                                for oci_env_var in oci_environment:
+                                    returncode = director.jail.oci_set_environment(jail, oci_env_var, fd)
+
+                                    if returncode == 0:
+                                        print("Done.")
+                                    else:
+                                        print("FAIL!")
+                                        project_obj.set_state(director.project.STATE_FAILED)
+                                        project_obj.set_fail(service)
+                                        sys.exit(returncode)
+
                     # Scripts.
 
                     scripts = project_obj.get_scripts(service)

@@ -54,6 +54,29 @@ def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None,
 
     return _run(cmd, output, timeout, env)
 
+def oci_set_user(jail, user, output=None, timeout=None, env=None):
+    cmd = [
+        get_appjail_script(), "oci", "set-user", jail, user
+    ]
+
+    return _run(cmd, output, timeout, env)
+
+def oci_set_workdir(jail, workdir, output=None, timeout=None, env=None):
+    cmd = [
+        get_appjail_script(), "oci", "set-workdir", jail, workdir
+    ]
+
+    return _run(cmd, output, timeout, env)
+
+def oci_set_environment(jail, environment, output=None, timeout=None, shell_env=None):
+        env_name, env_val = __ydict2tuple(environment)
+
+        cmd = [
+            get_appjail_script(), "oci", "set-env", jail, env_name, env_val
+        ]
+
+        return _run(cmd, output, timeout, shell_env)
+
 def enable_start(jail, output=None, arguments=[], environment=[], timeout=None, shell_env=None):
     cmd = [
         get_appjail_script(), "enable", jail, "start"

@@ -109,6 +109,7 @@ def __check_service(service, name, nro):
         "arguments",
         "environment",
         "start-environment",
+        "oci",
         "volumes",
         "scripts",
         "start",
@@ -169,6 +170,31 @@ def __check_service(service, name, nro):
 
     if start_environment is not None:
         service["start-environment"] = _fix_non_str_list(start_environment, f"{_id}/start-environment")
+
+    oci = service.get("oci")
+
+    if oci is not None:
+        if not isinstance(oci, dict):
+            raise director.exceptions.InvalidSpec(f"{_id} (oci / #{nro}): Must be a Mapping.")
+
+        oci_user = oci.get("user")
+
+        if oci_user is not None and not isinstance(oci_user, str):
+            oci_user = str(oci_user)
+
+            oci["user"] = oci_user
+
+        oci_workdir = oci.get("workdir")
+
+        if oci_workdir is not None and not isinstance(oci_workdir, str):
+            oci_workdir = str(oci_workdir)
+
+            oci["workdir"] = oci_workdir
+        
+        oci_environment = oci.get("environment")
+
+        if oci_environment is not None:
+            oci["environment"] = _fix_non_str_list(oci_environment, f"{_id}/oci/environment", False)
 
     volumes = service.get("volumes")
 
