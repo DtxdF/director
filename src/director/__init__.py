@@ -359,6 +359,9 @@ def up(file, project, overwrite):
                                 print("Done.")
                             else:
                                 print("FAIL!")
+                                project_obj.set_state(director.project.STATE_FAILED)
+                                project_obj.set_fail(service)
+                                sys.exit(returncode)
 
                     # OCI
                     oci = project_obj.get_oci(service)
