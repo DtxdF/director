@@ -60,6 +60,9 @@ from director.sysexits import *
 
 CURRENT_JAIL = None
 
+USE_JSON_OUTPUT = False
+JSON_OUTPUT = {}
+
 # Signals.
 IGNORED_SIGNALS = (SIGALRM, SIGVTALRM, SIGPROF, SIGUSR1, SIGUSR2)
 HANDLER_SIGNALS = (SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGXCPU, SIGXFSZ)
@@ -129,9 +132,11 @@ def cli(config, env_file):
 @cli.command(short_help="Create a project")
 @click.help_option()
 @click.option("-f", "--file", default=director.default.DIRECTOR_FILE, show_default=True, help="Specify an alternate director file.")
+@click.option("-j", "--json", is_flag=True, default=False, help="Output in JSON format.")
 @click.option("-p", "--project", help="Specify an alternate project name. If none is specified, a random name is used.")
+@click.option("-q", "--quiet", is_flag=True, default=False, help="Quiet mode: suppress normal output.")
 @click.option("--overwrite", is_flag=True, default=False, help="Re-create all services, even when it is not necessary.")
-def up(file, project, overwrite):
+def up(file, json, project, quiet, overwrite):
     """
     Reads a director file.
 
@@ -162,21 +167,40 @@ def up(file, project, overwrite):
     behavior of this action. 
     """
 
+    global USE_JSON_OUTPUT
+    global JSON_OUTPUT
+
+    if json:
+        USE_JSON_OUTPUT = True
+        quiet = True
+
     ignore_other_signals()
     enable_stop_jail_handler()
+
+    atexit.register(print_json)
 
     if project is None:
         project = _get_project_name_from_env(director.project.generate_random_name())
 
+    JSON_OUTPUT = {
+        "errlevel" : 0,
+        "message" : None,
+        "failed" : []
+    }
+
     if not os.path.isfile(file):
-        print(f"{file}: Director file cannot be found.", file=sys.stderr)
+        _print(f"{file}: Director file cannot be found.", file=sys.stderr, quiet=quiet)
+
+        JSON_OUTPUT["errlevel"] = EX_NOINPUT
+        JSON_OUTPUT["message"] = f"{file}: Director file cannot be found."
+
         sys.exit(EX_NOINPUT)
 
     log = director.log.Log(
         basedir=director.config.get("logs", "directory")
     )
 
-    print(f"Starting Director (project:{project}) ...")
+    _print(f"Starting Director (project:{project}) ...", quiet=quiet)
 
     try:
         # Make sure that any access to any other file will be relative to the
@@ -235,17 +259,19 @@ def up(file, project, overwrite):
 
                     if director.jail.status(jail) == 0:
                         with log.open(os.path.join(service, "stop.log")) as fd:
-                            print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
+                            _print(f"Stopping {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
                             returncode = director.jail.stop(jail, fd, command_timeout)
 
                             if returncode == 0:
-                                print("Done.")
+                                _print("Done.", quiet=quiet)
                             else:
-                                print("FAIL!")
+                                _print("FAIL!", quiet=quiet)
+
+                                JSON_OUTPUT["failed"].append({ "type" : "stop", "service" : service })
 
                     with log.open(os.path.join(service, "destroy.log")) as fd:
-                        print(f"Destroying {service} ({jail}) ...", end=" ", flush=True)
+                        _print(f"Destroying {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
                         returncode = director.jail.destroy(
                             jail, fd, remove_recursive,
@@ -253,15 +279,20 @@ def up(file, project, overwrite):
                         )
 
                         if returncode == 0:
-                            print("Done.")
+                            _print("Done.", quiet=quiet)
 
                             # Remove service information if it is no longer really needed.
                             if service not in services:
                                 project_obj.unset_key(service)
                         else:
-                            print("FAIL!")
                             project_obj.set_state(director.project.STATE_FAILED)
                             project_obj.set_fail(service)
+
+                            _print("FAIL!", quiet=quiet)
+
+                            JSON_OUTPUT["failed"].append({ "type" : "destroy", "service" : service })
+                            JSON_OUTPUT["errlevel"] = returncode
+
                             sys.exit(returncode)
 
             global_volumes = project_obj.get_volumes()
@@ -326,7 +357,7 @@ def up(file, project, overwrite):
                     project_obj.set_key("last_log", log.directory)
 
                     with log.open(os.path.join(service, "makejail.log")) as fd:
-                        print(f"Creating {service} ({jail}) ...", end=" ", flush=True)
+                        _print(f"Creating {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
                         returncode = director.jail.makejail(
                             jail, makejail, fd, arguments,
@@ -335,11 +366,16 @@ def up(file, project, overwrite):
                         )
 
                         if returncode == 0:
-                            print("Done.")
+                            _print("Done.", quiet=quiet)
                         else:
-                            print("FAIL!")
                             project_obj.set_state(director.project.STATE_FAILED)
                             project_obj.set_fail(service)
+
+                            _print("FAIL!", quiet=quiet)
+
+                            JSON_OUTPUT["failed"].append({ "type" : "makejail", "service" : service })
+                            JSON_OUTPUT["errlevel"] = returncode
+
                             sys.exit(returncode)
 
                     # Start arguments & environment.
@@ -349,18 +385,23 @@ def up(file, project, overwrite):
 
                     if start_arguments or start_environment:
                         with log.open(os.path.join(service, "enable-start.log")) as fd:
-                            print("", "- Setting up start arguments ...", end=" ", flush=True)
+                            _print("", "- Setting up start arguments ...", end=" ", flush=True, quiet=quiet)
 
                             returncode = director.jail.enable_start(jail, fd,
                                                                     start_arguments,
                                                                     start_environment)
 
                             if returncode == 0:
-                                print("Done.")
+                                _print("Done.", quiet=quiet)
                             else:
-                                print("FAIL!")
                                 project_obj.set_state(director.project.STATE_FAILED)
                                 project_obj.set_fail(service)
+
+                                _print("FAIL!", quiet=quiet)
+
+                                JSON_OUTPUT["failed"].append({ "type" : "enable-start", "service" : service })
+                                JSON_OUTPUT["errlevel"] = returncode
+
                                 sys.exit(returncode)
 
                     # OCI
@@ -371,49 +412,64 @@ def up(file, project, overwrite):
 
                         if oci_user is not None:
                             with log.open(os.path.join(service, "oci-user.log")) as fd:
-                                print("", "- Configuring the user (OCI) ...", end=" ", flush=True)
+                                _print("", "- Configuring the user (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 returncode = director.jail.oci_set_user(jail, oci_user, fd)
 
                                 if returncode == 0:
-                                    print("Done.")
+                                    _print("Done.", quiet=quiet)
                                 else:
-                                    print("FAIL!")
                                     project_obj.set_state(director.project.STATE_FAILED)
                                     project_obj.set_fail(service)
+
+                                    _print("FAIL!", quiet=quiet)
+
+                                    JSON_OUTPUT["failed"].append({ "type" : "oci-user", "service" : service })
+                                    JSON_OUTPUT["errlevel"] = returncode
+
                                     sys.exit(returncode)
 
                         oci_workdir = oci.get("workdir")
 
                         if oci_workdir is not None:
                             with log.open(os.path.join(service, "oci-workdir.log")) as fd:
-                                print("", "- Configuring the working directory (OCI) ...", end=" ", flush=True)
+                                _print("", "- Configuring the working directory (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 returncode = director.jail.oci_set_workdir(jail, oci_workdir, fd)
 
                                 if returncode == 0:
-                                    print("Done.")
+                                    _print("Done.", quiet=quiet)
                                 else:
-                                    print("FAIL!")
                                     project_obj.set_state(director.project.STATE_FAILED)
                                     project_obj.set_fail(service)
+
+                                    _print("FAIL!", quiet=quiet)
+
+                                    JSON_OUTPUT["failed"].append({ "type" : "oci-workdir", "service" : service })
+                                    JSON_OUTPUT["errlevel"] = returncode
+
                                     sys.exit(returncode)
 
                         oci_environment = oci.get("environment")
 
                         if oci_environment:
                             with log.open(os.path.join(service, "oci-environment.log")) as fd:
-                                print("", "- Configuring the environment (OCI) ...", end=" ", flush=True)
+                                _print("", "- Configuring the environment (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 for oci_env_var in oci_environment:
                                     returncode = director.jail.oci_set_environment(jail, oci_env_var, fd)
 
                                     if returncode == 0:
-                                        print("Done.")
+                                        _print("Done.", quiet=quiet)
                                     else:
-                                        print("FAIL!")
                                         project_obj.set_state(director.project.STATE_FAILED)
                                         project_obj.set_fail(service)
+
+                                        _print("FAIL!", quiet=quiet)
+
+                                        JSON_OUTPUT["failed"].append({ "type" : "oci-environment", "service" : service })
+                                        JSON_OUTPUT["errlevel"] = returncode
+
                                         sys.exit(returncode)
 
                     # Scripts.
@@ -422,7 +478,7 @@ def up(file, project, overwrite):
 
                     if scripts:
                         with log.open(os.path.join(service, "scripts.log")) as fd:
-                            print("- Scripts:")
+                            _print("- Scripts:", quiet=quiet)
 
                             for script in scripts:
                                 text = script["text"]
@@ -433,8 +489,8 @@ def up(file, project, overwrite):
                                 _end = " "
 
                                 for out in (sys.stdout, fd):
-                                    print("", f"- (type: {type_}, shell: {shell}):", _repr_text, "...",
-                                          end=_end, file=out, flush=True)
+                                    _print("", f"- (type: {type_}, shell: {shell}):", _repr_text, "...",
+                                          end=_end, file=out, flush=True, quiet=quiet)
 
                                     _end = "\n"
 
@@ -444,11 +500,16 @@ def up(file, project, overwrite):
                                 )
 
                                 if returncode == 0:
-                                    print("ok.")
+                                    _print("ok.", quiet=quiet)
                                 else:
-                                    print("FAIL!")
                                     project_obj.set_state(director.project.STATE_FAILED)
                                     project_obj.set_fail(service)
+
+                                    _print("FAIL!", quiet=quiet)
+
+                                    JSON_OUTPUT["failed"].append({ "type" : "scripts", "service" : service })
+                                    JSON_OUTPUT["errlevel"] = returncode
+
                                     sys.exit(returncode)
 
                 if director.jail.status(jail) != 0:
@@ -458,18 +519,23 @@ def up(file, project, overwrite):
                     project_obj.set_key("last_log", log.directory)
 
                     with log.open(os.path.join(service, "start.log")) as fd:
-                        print(f"Starting {service} ({jail}) ...", end=" ", flush=True)
+                        _print(f"Starting {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
                         returncode = director.jail.start(
                             jail, fd, command_timeout
                         )
 
                         if returncode == 0:
-                            print("Done.")
+                            _print("Done.", quiet=quiet)
                         else:
-                            print("FAIL!")
                             project_obj.set_state(director.project.STATE_FAILED)
                             project_obj.set_fail(service)
+
+                            _print("FAIL!", quiet=quiet)
+
+                            JSON_OUTPUT["failed"].append({ "type" : "start", "service" : service })
+                            JSON_OUTPUT["errlevel"] = returncode
+
                             sys.exit(returncode)
 
                 project_obj.set_done(service)
@@ -478,11 +544,13 @@ def up(file, project, overwrite):
             project_obj.set_state(director.project.STATE_DONE)
 
             if do_nothing:
-                print("Nothing to do.")
+                _print("Nothing to do.", quiet=quiet)
             else:
-                print("Finished:", project)
+                _print("Finished:", project, quiet=quiet)
     except Exception as err:
         _catch(log, err)
+
+        JSON_OUTPUT["errlevel"] = EX_SOFTWARE
 
         sys.exit(EX_SOFTWARE)
 
@@ -518,6 +586,8 @@ def stop_jail_handler(*args, **kwargs):
         except Exception as err:
             print_err(err)
 
+    JSON_OUTPUT["errlevel"] = EX_SOFTWARE
+
     sys.exit(EX_SOFTWARE)
 
 def enable_stop_jail_handler():
@@ -540,10 +610,12 @@ def set_current_jail(jail):
 @cli.command(short_help="Stop and/or destroy a project")
 @click.help_option()
 @click.option("-d", "--destroy", is_flag=True, default=False, help="Destroy the project after stopping it.")
+@click.option("-j", "--json", is_flag=True, default=False, help="Output in JSON format.")
 @click.option("-p", "--project", help="Project name.")
 @click.option("--ignore-failed", is_flag=True, default=False, help="Ignore services that are not destroyed.")
 @click.option("--ignore-services", is_flag=True, default=False, help="Ignore services.")
-def down(destroy, project, ignore_failed, ignore_services):
+@click.option("-q", "--quiet", is_flag=True, default=False, help="Quiet mode: suppress normal output.")
+def down(destroy, json, project, ignore_failed, ignore_services, quiet):
     """
     Stops the project and if the --destroy flag is used, it will be destroyed.
     Destroy implies stopping and destroying all the jails in that project and
@@ -554,6 +626,15 @@ def down(destroy, project, ignore_failed, ignore_services):
     from the DIRECTOR_PROJECT environment variable.
     """
 
+    global USE_JSON_OUTPUT
+    global JSON_OUTPUT
+
+    if json:
+        USE_JSON_OUTPUT = True
+        quiet = True
+
+    atexit.register(print_json)
+
     if project is None:
         project = _get_project_name_from_env()
 
@@ -561,11 +642,20 @@ def down(destroy, project, ignore_failed, ignore_services):
             __project_name_not_specified()
             sys.exit(EX_DATAERR)
 
+    JSON_OUTPUT = {
+        "errlevel" : 0,
+        "message" : None,
+        "failed" : {
+            "stop" : [],
+            "destroy" : []
+        }
+    }
+
     log = director.log.Log(
         basedir=director.config.get("logs", "directory")
     )
 
-    print(f"Starting Director (project:{project}) ...")
+    _print(f"Starting Director (project:{project}) ...", quiet=quiet)
 
     try:
         do_nothing = True
@@ -584,7 +674,11 @@ def down(destroy, project, ignore_failed, ignore_services):
         project_obj = director.project.Project(project, basedir=projectsdir)
 
         if not os.path.isdir(project_obj.directory):
-            print(f"{project}: Project not found.", file=sys.stderr)
+            _print(f"{project}: Project not found.", file=sys.stderr, quiet=quiet)
+
+            JSON_OUTPUT["errlevel"] = EX_NOINPUT
+            JSON_OUTPUT["message"] = f"{project}: Project not found."
+
             sys.exit(EX_NOINPUT)
 
         project_obj.lock()
@@ -613,19 +707,21 @@ def down(destroy, project, ignore_failed, ignore_services):
                 if status == 0:
                     do_nothing = False
 
-                    print(f"Stopping {service} ({jail}) ...", end=" ", flush=True)
+                    _print(f"Stopping {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
                     returncode = director.jail.stop(jail, subprocess.DEVNULL, command_timeout)
 
                     if returncode == 0:
-                        print("Done.")
+                        _print("Done.", quiet=quiet)
                     else:
-                        print("FAIL!")
+                        _print("FAIL!", quiet=quiet)
+
+                        JSON_OUTPUT["failed"].append({ "type" : "stop", "service" : service })
 
                 if destroy:
                     do_nothing = False
 
-                    print(f"Destroying {service} ({jail}) ...", end=" ", flush=True)
+                    _print(f"Destroying {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
                     returncode = director.jail.destroy(
                         jail, subprocess.DEVNULL,
@@ -633,9 +729,11 @@ def down(destroy, project, ignore_failed, ignore_services):
                     )
 
                     if returncode == 0:
-                        print("Done.")
+                        _print("Done.", quiet=quiet)
                     else:
-                        print("FAIL!")
+                        _print("FAIL!", quiet=quiet)
+
+                        JSON_OUTPUT["failed"].append({ "type" : "destroy", "service" : service })
 
                         if not ignore_failed:
                             sys.exit(returncode)
@@ -643,16 +741,18 @@ def down(destroy, project, ignore_failed, ignore_services):
         if destroy:
             do_nothing = False
 
-            print(f"Destroying {project} ...", end=" ", flush=True)
+            _print(f"Destroying {project} ...", end=" ", flush=True, quiet=quiet)
 
             shutil.rmtree(project_obj.directory, ignore_errors=True)
 
-            print("Done.")
+            _print("Done.", quiet=quiet)
 
         if do_nothing:
-            print("Nothing to do.")
+            _print("Nothing to do.", quiet=quiet)
     except Exception as err:
         _catch(log, err)
+
+        JSON_OUTPUT["errlevel"] = EX_SOFTWARE
 
         sys.exit(EX_SOFTWARE)
     
@@ -870,7 +970,7 @@ def describe(project):
         if project_obj.locked():
             locked = True
         else:
-            locked = True
+            locked = False
 
         output = {
             "name" : project,
@@ -934,6 +1034,14 @@ def check(project):
 
     sys.exit(EX_OK)
 
+def print_json():
+    if USE_JSON_OUTPUT:
+        print(json.dumps(JSON_OUTPUT, indent=2))
+
+def _print(*args, quiet=False, **kwargs):
+    if not quiet:
+        print(*args, **kwargs)
+
 def __project_name_not_specified():
     print("The project name is not specified, use `--project` or", file=sys.stderr)
     print("set the `DIRECTOR_PROJECT` environment variable.", file=sys.stderr)
@@ -950,7 +1058,7 @@ def _catch(log, err):
         traceback.print_exc(file=fd)
 
 def print_err(err):
-    print("Exception:")
+    print("Exception:", file=sys.stderr)
     print("", "type:", err.__class__.__name__, file=sys.stderr)
     print("", "error:", err, file=sys.stderr)
 
