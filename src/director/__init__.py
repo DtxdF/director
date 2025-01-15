@@ -645,10 +645,7 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
     JSON_OUTPUT = {
         "errlevel" : 0,
         "message" : None,
-        "failed" : {
-            "stop" : [],
-            "destroy" : []
-        }
+        "failed" : []
     }
 
     log = director.log.Log(
