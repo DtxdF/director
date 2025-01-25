@@ -42,8 +42,8 @@ class Key():
         if dirname != "":
             os.makedirs(dirname, exist_ok=True)
 
-        with open(keyfile, "w") as fd:
-            fd.write(value)
+        with open(keyfile, "wb", buffering=0) as fd:
+            fd.write(value.encode())
 
     def get_key(self, key, default=None):
         if not self.has_key(key):
