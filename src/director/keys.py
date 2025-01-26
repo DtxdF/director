@@ -44,6 +44,8 @@ class Key():
 
         with open(keyfile, "wb", buffering=0) as fd:
             fd.write(value.encode())
+            fd.flush()
+            os.fsync(fd.fileno())
 
     def get_key(self, key, default=None):
         if not self.has_key(key):
