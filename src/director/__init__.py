@@ -63,6 +63,9 @@ CURRENT_JAIL = None
 USE_JSON_OUTPUT = False
 JSON_OUTPUT = {}
 
+GLOBAL_STATE = director.project.STATE_FAILED
+GLOBAL_PROJECT = None
+
 # Signals.
 IGNORED_SIGNALS = (SIGALRM, SIGVTALRM, SIGPROF, SIGUSR1, SIGUSR2)
 HANDLER_SIGNALS = (SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGXCPU, SIGXFSZ)
@@ -169,6 +172,8 @@ def up(file, json, project, quiet, overwrite):
 
     global USE_JSON_OUTPUT
     global JSON_OUTPUT
+    global GLOBAL_STATE
+    global GLOBAL_PROJECT
 
     if json:
         USE_JSON_OUTPUT = True
@@ -181,6 +186,8 @@ def up(file, json, project, quiet, overwrite):
 
     if project is None:
         project = _get_project_name_from_env(director.project.generate_random_name())
+
+    GLOBAL_PROJECT = project
 
     JSON_OUTPUT = {
         "errlevel" : 0,
@@ -219,6 +226,8 @@ def up(file, json, project, quiet, overwrite):
         projectsdir = director.config.get("projects", "directory")
 
         with director.project.Project(project, file, projectsdir) as project_obj:
+            atexit.register(set_state)
+
             # Initial state.
             project_obj.set_state(director.project.STATE_UNFINISHED)
 
@@ -285,7 +294,6 @@ def up(file, json, project, quiet, overwrite):
                             if service not in services:
                                 project_obj.unset_key(service)
                         else:
-                            project_obj.set_state(director.project.STATE_FAILED)
                             project_obj.set_fail(service)
 
                             _print("FAIL!", quiet=quiet)
@@ -368,7 +376,6 @@ def up(file, json, project, quiet, overwrite):
                         if returncode == 0:
                             _print("Done.", quiet=quiet)
                         else:
-                            project_obj.set_state(director.project.STATE_FAILED)
                             project_obj.set_fail(service)
 
                             _print("FAIL!", quiet=quiet)
@@ -394,7 +401,6 @@ def up(file, json, project, quiet, overwrite):
                             if returncode == 0:
                                 _print("Done.", quiet=quiet)
                             else:
-                                project_obj.set_state(director.project.STATE_FAILED)
                                 project_obj.set_fail(service)
 
                                 _print("FAIL!", quiet=quiet)
@@ -419,7 +425,6 @@ def up(file, json, project, quiet, overwrite):
                                 if returncode == 0:
                                     _print("Done.", quiet=quiet)
                                 else:
-                                    project_obj.set_state(director.project.STATE_FAILED)
                                     project_obj.set_fail(service)
 
                                     _print("FAIL!", quiet=quiet)
@@ -440,7 +445,6 @@ def up(file, json, project, quiet, overwrite):
                                 if returncode == 0:
                                     _print("Done.", quiet=quiet)
                                 else:
-                                    project_obj.set_state(director.project.STATE_FAILED)
                                     project_obj.set_fail(service)
 
                                     _print("FAIL!", quiet=quiet)
@@ -462,7 +466,6 @@ def up(file, json, project, quiet, overwrite):
                                     if returncode == 0:
                                         _print("Done.", quiet=quiet)
                                     else:
-                                        project_obj.set_state(director.project.STATE_FAILED)
                                         project_obj.set_fail(service)
 
                                         _print("FAIL!", quiet=quiet)
@@ -502,7 +505,6 @@ def up(file, json, project, quiet, overwrite):
                                 if returncode == 0:
                                     _print("ok.", quiet=quiet)
                                 else:
-                                    project_obj.set_state(director.project.STATE_FAILED)
                                     project_obj.set_fail(service)
 
                                     _print("FAIL!", quiet=quiet)
@@ -528,7 +530,6 @@ def up(file, json, project, quiet, overwrite):
                         if returncode == 0:
                             _print("Done.", quiet=quiet)
                         else:
-                            project_obj.set_state(director.project.STATE_FAILED)
                             project_obj.set_fail(service)
 
                             _print("FAIL!", quiet=quiet)
@@ -541,7 +542,7 @@ def up(file, json, project, quiet, overwrite):
                 project_obj.set_done(service)
 
             # Done.
-            project_obj.set_state(director.project.STATE_DONE)
+            GLOBAL_STATE = director.project.STATE_DONE
 
             if do_nothing:
                 _print("Nothing to do.", quiet=quiet)
@@ -628,6 +629,8 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
 
     global USE_JSON_OUTPUT
     global JSON_OUTPUT
+    global GLOBAL_STATE
+    global GLOBAL_PROJECT
 
     if json:
         USE_JSON_OUTPUT = True
@@ -641,6 +644,8 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
         if project is None:
             __project_name_not_specified()
             sys.exit(EX_DATAERR)
+
+    GLOBAL_PROJECT = project
 
     JSON_OUTPUT = {
         "errlevel" : 0,
@@ -681,6 +686,7 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
         project_obj.lock()
 
         atexit.register(project_obj.unlock)
+        atexit.register(set_state)
 
         project_obj.set_state(director.project.STATE_DESTROYING)
 
@@ -746,6 +752,9 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
 
         if do_nothing:
             _print("Nothing to do.", quiet=quiet)
+
+        # Done.
+        GLOBAL_STATE = director.project.STATE_DONE
     except Exception as err:
         _catch(log, err)
 
@@ -1034,6 +1043,17 @@ def check(project):
 def print_json():
     if USE_JSON_OUTPUT:
         print(json.dumps(JSON_OUTPUT, indent=2))
+
+def set_state():
+    if GLOBAL_PROJECT is None:
+        return
+
+    projectsdir = director.config.get("projects", "directory")
+
+    project_obj = director.project.Project(GLOBAL_PROJECT, basedir=projectsdir)
+
+    if os.path.isdir(project_obj.directory):
+        project_obj.set_state(GLOBAL_STATE)
 
 def _print(*args, quiet=False, **kwargs):
     if not quiet:
