@@ -50,3 +50,12 @@ class InvalidSpec(Exception):
 
 class DirectorFileNotDefined(Exception):
     pass
+
+class ProcessAlreadyExists(Exception):
+    pass
+
+class NoSuchProcess(Exception):
+    pass
+
+class AccessDenied(Exception):
+    pass

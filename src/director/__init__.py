@@ -227,9 +227,13 @@ def up(file, json, project, quiet, overwrite):
 
         with director.project.Project(project, file, projectsdir) as project_obj:
             atexit.register(set_state)
+            atexit.register(project_obj.remove_process)
 
             # Initial state.
             project_obj.set_state(director.project.STATE_UNFINISHED)
+
+            # Register PPID & PID.
+            project_obj.register_process()
 
             order = []
 
@@ -1033,6 +1037,50 @@ def check(project):
 
         if not os.path.isdir(project_obj.directory):
             sys.exit(EX_NOINPUT)
+    except Exception as err:
+        _catch(log, err)
+
+        sys.exit(EX_SOFTWARE)
+
+    sys.exit(EX_OK)
+
+@cli.command(short_help="Terminate a project in progress")
+@click.help_option()
+@click.option("-p", "--project", help="Project name.")
+def cancel(project):
+    """
+    Sends a SIGTERM signal to a running project.
+
+    For this to succeed, the project state must be UNFINISHED and the registered
+    parent PID must be the same as the parent PID of the currently running process.
+    """
+
+    if project is None:
+        project = _get_project_name_from_env()
+
+        if project is None:
+            __project_name_not_specified()
+            sys.exit(EX_DATAERR)
+
+    log = director.log.Log(
+        basedir=director.config.get("logs", "directory")
+    )
+
+    try:
+        projectsdir = director.config.get("projects", "directory")
+
+        project_obj = director.project.Project(project, basedir=projectsdir)
+
+        if not os.path.isdir(project_obj.directory):
+            print(f"{project}: Project not found.", file=sys.stderr)
+
+            sys.exit(EX_NOINPUT)
+
+        try:
+            project_obj.terminate()
+            project_obj.remove_process()
+        except ProcessLookupError:
+            pass
     except Exception as err:
         _catch(log, err)
 

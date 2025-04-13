@@ -29,9 +29,11 @@
 
 import copy
 import os
+import psutil
 import re
 import secrets
 import shutil
+import signal
 
 import director.default
 import director.exceptions
@@ -108,6 +110,63 @@ class Project(director.keys.Key):
 
     def get_state(self):
         return self.get_key("state")
+
+    def register_process(self):
+        pid = self.get_pid()
+
+        if pid is not None:
+            try:
+                os.kill(pid, 0)
+
+                raise director.exceptions.ProcessAlreadyExists(f"{pid}: Can't create PID file because the process is already running.")
+            except ProcessLookupError:
+                pass
+
+        ppid = os.getppid()
+        pid = os.getpid()
+
+        self.set_key("ppid", "%d" % ppid)
+        self.set_key("pid", "%d" % pid)
+
+    def get_pid(self):
+        pid = self.get_key("pid")
+
+        if pid is not None:
+            return int(pid)
+
+    def get_ppid(self):
+        ppid = self.get_key("ppid")
+
+        if ppid is not None:
+            return int(ppid)
+
+    def remove_process(self):
+        self.unset_key("ppid")
+        self.unset_key("pid")
+
+    def terminate(self):
+        if not self.check_state(STATE_UNFINISHED):
+            return
+
+        ppid = self.get_ppid()
+
+        pid = self.get_pid()
+
+        if ppid is None or pid is None:
+            return
+
+        proc_info = psutil.Process(pid)
+
+        parent = proc_info.parent()
+
+        if parent is None:
+            raise director.exceptions.NoSuchProcess(f"{pid}: Unknown parent PID for this process.")
+
+        if ppid != parent.pid:
+            raise director.exceptions.AccessDenied(f"{ppid} != {parent.pid}: Known parent PID differs from " \
+                    "the current parent PID.")
+
+        os.kill(pid, signal.SIGTERM)
 
     def lock(self):
         if self.locked():

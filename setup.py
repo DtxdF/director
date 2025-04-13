@@ -34,7 +34,8 @@ setup(
     install_requires=[
         "click",
         "pyaml-env",
-        "python-dotenv"
+        "python-dotenv",
+        "psutil"
     ],
     entry_points={
         "console_scripts" : [
