@@ -82,12 +82,13 @@ def cli(config, env_file):
     that make up your application are configured. Once you have a Director file, you
     can create and start your application with a single command: `appjail-director up`.
 
-    The configuration files are loaded in the following order: prefix/etc/director.ini,
-    ~/.director/director.ini, from the environment variable DIRECTOR_CONFIG and from
-    the --config option. Only the first two are loaded if they exist, otherwise they
-    are ignored. When specifying the configuration file from the environment variable
-    or from the command-line option, you must be sure that these files exist, otherwise
-    an error will be displayed.
+    The configuration files are loaded in the following order:
+    prefix/etc/director.ini, ~/.config/director/director.ini, from the
+    environment variable DIRECTOR_CONFIG and from the --config option. Only the
+    first two are loaded if they exist, otherwise they are ignored. When
+    specifying the configuration file from the environment variable or from the
+    command-line option, you must be sure that these files exist, otherwise an
+    error will be displayed.
 
     An environment file specified by --env-file is loaded if it exists, otherwise it is
     ignored. This file is very useful for when you need to put some secrets or some
