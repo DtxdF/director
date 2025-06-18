@@ -47,7 +47,7 @@ STATE_UNFINISHED = 2
 STATE_DESTROYING = 3
 
 class Project(director.keys.Key):
-    def __init__(self, name, file=None, basedir="."):
+    def __init__(self, name, file=None, basedir=".", locksdir=None):
         self.next_file = file
 
         self.name = name
@@ -64,6 +64,13 @@ class Project(director.keys.Key):
         self.next_spec = None
 
         self.new_project = None
+
+        self.lock_keys = None
+
+        if locksdir is not None:
+            locksdir = f"{locksdir}/{name}"
+
+            self.lock_keys = director.keys.Key(locksdir)
 
         super().__init__(self.directory)
 
@@ -88,6 +95,11 @@ class Project(director.keys.Key):
                 self.new_project = False
             else:
                 self.new_project = True
+
+            dirname = os.path.dirname(self.current_file)
+
+            if dirname != "":
+                os.makedirs(dirname, exist_ok=True)
 
             shutil.copyfile(self.next_file, self.current_file)
 
@@ -169,19 +181,28 @@ class Project(director.keys.Key):
         os.kill(pid, signal.SIGTERM)
 
     def lock(self):
+        if self.lock_keys is None:
+            self.__raise_LocksNotFound()
+
         if self.locked():
-            lockfile = self.get_keyfile("lock")
+            lockfile = self.lock_keys.get_keyfile("lock")
 
             raise director.exceptions.ProjectLocked(f"{self.name}: Project locked. Run `rm -f {lockfile}` " \
                     "if you are sure that no other process is locking this project.")
 
-        self.set_key("lock", "")
+        self.lock_keys.set_key("lock", "")
 
     def locked(self):
-        return self.has_key("lock")
+        if self.lock_keys is None:
+            self.__raise_LocksNotFound()
+
+        return self.lock_keys.has_key("lock")
 
     def unlock(self):
-        self.unset_key("lock")
+        if self.lock_keys is None:
+            self.__raise_LocksNotFound()
+
+        self.lock_keys.unset_key("lock")
 
     def parse_next_spec(self):
         if self.next_spec is not None:
@@ -394,6 +415,9 @@ class Project(director.keys.Key):
 
     def __raise_ServiceNotFound(self, name):
         raise director.exceptions.ServiceNotFound(f"{name}: Service not found.")
+
+    def __raise_LocksNotFound(self):
+        raise director.exceptions.LocksNotFound(f"{self.name}: Location of locks not configured.")
 
 def check_name(name):
     return re.match(r"^[a-zA-Z0-9._-]+$", name) is not None

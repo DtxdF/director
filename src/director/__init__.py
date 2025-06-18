@@ -226,7 +226,9 @@ def up(file, json, project, quiet, overwrite):
 
         projectsdir = director.config.get("projects", "directory")
 
-        with director.project.Project(project, file, projectsdir) as project_obj:
+        locksdir = director.config.get("locks", "directory")
+
+        with director.project.Project(project, file, projectsdir, locksdir) as project_obj:
             atexit.register(set_state)
             atexit.register(project_obj.remove_process)
 
@@ -669,6 +671,8 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
 
         projectsdir = director.config.get("projects", "directory")
 
+        locksdir = director.config.get("locks", "directory")
+
         # Destroying behavior.
         remove_recursive = director.config.getboolean("jails", "remove_recursive")
         remove_force = director.config.getboolean("jails", "remove_force")
@@ -678,7 +682,7 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
 
         # We cannot use a context manager because it calls the .open() method which fails
         # since no `director` file has been defined.
-        project_obj = director.project.Project(project, basedir=projectsdir)
+        project_obj = director.project.Project(project, basedir=projectsdir, locksdir=locksdir)
 
         if not os.path.isdir(project_obj.directory):
             _print(f"{project}: Project not found.", file=sys.stderr, quiet=quiet)
@@ -884,7 +888,9 @@ def info(project):
     try:
         projectsdir = director.config.get("projects", "directory")
 
-        project_obj = director.project.Project(project, basedir=projectsdir)
+        locksdir = director.config.get("locks", "directory")
+
+        project_obj = director.project.Project(project, basedir=projectsdir, locksdir=locksdir)
 
         if not os.path.isdir(project_obj.directory):
             print(f"{project}: Project not found.", file=sys.stderr)
@@ -961,7 +967,9 @@ def describe(project):
     try:
         projectsdir = director.config.get("projects", "directory")
 
-        project_obj = director.project.Project(project, basedir=projectsdir)
+        locksdir = director.config.get("locks", "directory")
+
+        project_obj = director.project.Project(project, basedir=projectsdir, locksdir=locksdir)
 
         if not os.path.isdir(project_obj.directory):
             print(f"{project}: Project not found.", file=sys.stderr)

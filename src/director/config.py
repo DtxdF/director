@@ -38,6 +38,9 @@ __DEFAULT_CONFIG__ = {
     "projects" : {
         "directory" : os.path.expanduser("~/.director/projects")
     },
+    "locks" : {
+        "directory" : "/tmp/director/locks"
+    },
     "jails" : {
         "remove_recursive" : False,
         "remove_force" : True

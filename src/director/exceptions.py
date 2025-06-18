@@ -59,3 +59,6 @@ class NoSuchProcess(Exception):
 
 class AccessDenied(Exception):
     pass
+
+class LocksNotFound(Exception):
+    pass
