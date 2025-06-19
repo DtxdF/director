@@ -89,6 +89,16 @@ Read more details in `appjail-director --help` about which configuration files a
 
 **description**: Directory where the projects and its metadata will be stored.
 
+### locks
+
+#### directory
+
+**type**: String.
+
+**default**: `/tmp/director/locks`.
+
+**description**: Location of lock files.
+
 ### jails
 
 #### remove\_recursive
