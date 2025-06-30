@@ -31,6 +31,12 @@ import configparser
 import os
 import sys
 
+# Avoids "Permission denied" error.
+if os.getuid() == 0:
+    locks_directory = "/tmp/director/locks"
+else:
+    locks_directory = os.path.expanduser("~/.director/locks")
+
 __DEFAULT_CONFIG__ = {
     "logs" : {
         "directory" : os.path.expanduser("~/.director/logs")
@@ -39,7 +45,7 @@ __DEFAULT_CONFIG__ = {
         "directory" : os.path.expanduser("~/.director/projects")
     },
     "locks" : {
-        "directory" : "/tmp/director/locks"
+        "directory" : locks_directory
     },
     "jails" : {
         "remove_recursive" : False,
