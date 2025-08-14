@@ -423,4 +423,9 @@ def check_name(name):
     return re.match(r"^[a-zA-Z0-9._-]+$", name) is not None
 
 def generate_random_name():
-    return secrets.token_hex(5)
+    while True:
+        name = secrets.token_hex(5)
+
+        # Fix 'name cannot be numeric (unless it is the jid)'
+        if not re.match(r"^\d+$", name):
+            return name
