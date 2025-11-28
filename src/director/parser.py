@@ -321,7 +321,8 @@ def __check_script(script, name, nro):
     allowed_keys = (
         "shell",
         "type",
-        "text"
+        "text",
+        "post-start"
     )
 
     __check_allowed_key(allowed_keys, _id, script)
@@ -353,6 +354,11 @@ def __check_script(script, name, nro):
         text = str(text)
 
         script["text"] = text
+
+    post_start = script.get("post-start")
+
+    if post_start is None and not not isinstance(post_start, bool):
+        raise director.exceptions.InvalidSpec(f"{_id} (post-start / #{nro}): Must be a Boolean.")
 
 def __check_allowed_key(allowed_keys, name, data):
     for key in data:

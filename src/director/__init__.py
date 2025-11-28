@@ -482,44 +482,12 @@ def up(file, json, project, quiet, overwrite):
 
                                         sys.exit(returncode)
 
-                    # Scripts.
+                    # Scripts (pre-start).
 
                     scripts = project_obj.get_scripts(service)
 
                     if scripts:
-                        with log.open(os.path.join(service, "scripts.log")) as fd:
-                            _print("- Scripts:", quiet=quiet)
-
-                            for script in scripts:
-                                text = script["text"]
-                                shell = script.get("shell", director.default.SHELL)
-                                type_ = script.get("type", director.default.SHELL_TYPE)
-
-                                _repr_text = repr(text)
-                                _end = " "
-
-                                for out in (sys.stdout, fd):
-                                    _print("", f"- (type: {type_}, shell: {shell}):", _repr_text, "...",
-                                          end=_end, file=out, flush=True, quiet=quiet)
-
-                                    _end = "\n"
-
-                                returncode = director.jail.cmd(
-                                    jail, text, shell, type_, fd,
-                                    command_timeout
-                                )
-
-                                if returncode == 0:
-                                    _print("ok.", quiet=quiet)
-                                else:
-                                    project_obj.set_fail(service)
-
-                                    _print("FAIL!", quiet=quiet)
-
-                                    JSON_OUTPUT["failed"].append({ "type" : "scripts", "service" : service })
-                                    JSON_OUTPUT["errlevel"] = returncode
-
-                                    sys.exit(returncode)
+                        _run_scripts(scripts, log, service, False, jail, command_timeout, quiet, project_obj)
 
                 if director.jail.status(jail) != 0:
                     do_nothing = False
@@ -546,6 +514,14 @@ def up(file, json, project, quiet, overwrite):
 
                             sys.exit(returncode)
 
+                # Scripts (post-start).
+
+                scripts = project_obj.get_scripts(service)
+
+                if scripts:
+                    if not _run_scripts(scripts, log, service, True, jail, command_timeout, quiet, project_obj):
+                        do_nothing = False
+
                 project_obj.set_done(service)
 
             # Done.
@@ -563,6 +539,64 @@ def up(file, json, project, quiet, overwrite):
         sys.exit(EX_SOFTWARE)
 
     sys.exit(EX_OK)
+
+def _run_scripts(scripts, log, service, is_post_start, jail, command_timeout, quiet, project_obj):
+    do_nothing = True
+
+    with log.open(os.path.join(service, "scripts.log")) as fd:
+        do_scripts = True
+
+        for script in scripts:
+            post_start = script.get("post-start", False)
+
+            if is_post_start:
+                if not post_start:
+                    continue
+
+                phase = "post-start"
+            else:
+                if post_start:
+                    continue
+                
+                phase = "pre-start"
+
+            do_nothing = False
+
+            if do_scripts:
+                _print(f"- Scripts ({phase}):", quiet=quiet)
+                do_scripts = False
+
+            text = script["text"]
+            shell = script.get("shell", director.default.SHELL)
+            type_ = script.get("type", director.default.SHELL_TYPE)
+
+            _repr_text = repr(text)
+            _end = " "
+
+            for out in (sys.stdout, fd):
+                _print("", f"- (type: {type_}, shell: {shell}):", _repr_text, "...",
+                      end=_end, file=out, flush=True, quiet=quiet)
+
+                _end = "\n"
+
+            returncode = director.jail.cmd(
+                jail, text, shell, type_, fd,
+                command_timeout
+            )
+
+            if returncode == 0:
+                _print("ok.", quiet=quiet)
+            else:
+                project_obj.set_fail(service)
+
+                _print("FAIL!", quiet=quiet)
+
+                JSON_OUTPUT["failed"].append({ "type" : "scripts", "service" : service })
+                JSON_OUTPUT["errlevel"] = returncode
+
+                sys.exit(returncode)
+
+    return do_nothing
 
 def stop_jail_handler(*args, **kwargs):
     if CURRENT_JAIL is None:

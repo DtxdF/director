@@ -296,6 +296,14 @@ It has the same effect as the global `options`, but only for the services in whi
 
 **description**: Script to be executed.
 
+##### post-start
+
+**type**: Boolean.
+
+**default**: `false`
+
+**description**: By default, Director executes the script before checking the status of the jail, which means that the jail may or may not be started. When this parameter is set to `true`, the script runs after this check, and this occurs every time the project runs, so you must add logic to your script to prevent unwanted changes. This is especially useful when you need to update a configuration file and/or perform a hot reload.
+
 #### start
 
 **type**: Array of dictionaries. Each dictionary (key and value) is a string.
