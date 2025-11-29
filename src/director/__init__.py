@@ -522,6 +522,34 @@ def up(file, json, project, quiet, overwrite):
                     if not _run_scripts(scripts, log, service, True, jail, command_timeout, quiet, project_obj):
                         do_nothing = False
 
+                runtime_makejail = project_obj.get_runtime_makejail(service)
+
+                if runtime_makejail is not None:
+                    do_nothing = False
+
+                    runtime_arguments = project_obj.get_runtime_arguments(service)
+                    runtime_environment = project_obj.get_runtime_environment(service)
+
+                    with log.open(os.path.join(service, "runtime-makejail.log")) as fd:
+                        _print(f"Applying Makejail ({runtime_makejail}) to {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
+
+                        returncode = director.jail.apply_makejail(
+                            jail, runtime_makejail, fd, runtime_arguments,
+                            runtime_environment, command_timeout
+                        )
+
+                        if returncode == 0:
+                            _print("Done.", quiet=quiet)
+                        else:
+                            project_obj.set_fail(service)
+
+                            _print("FAIL!", quiet=quiet)
+
+                            JSON_OUTPUT["failed"].append({ "type" : "runtime-makejail", "service" : service })
+                            JSON_OUTPUT["errlevel"] = returncode
+
+                            sys.exit(returncode)
+
                 project_obj.set_done(service)
 
             # Done.

@@ -341,8 +341,14 @@ class Project(director.keys.Key):
     def get_arguments(self, service, next=True):
         return self.__get_service(service, next).get("arguments", [])
 
+    def get_runtime_arguments(self, service, next=True):
+        return self.__get_service(service, next).get("runtime-arguments", [])
+
     def get_environment(self, service, next=True):
         return self.__get_service(service, next).get("environment", [])
+
+    def get_runtime_environment(self, service, next=True):
+        return self.__get_service(service, next).get("runtime-environment", [])
 
     def get_start_environment(self, service, next=True):
         return self.__get_service(service, next).get("start-environment", [])
@@ -352,6 +358,9 @@ class Project(director.keys.Key):
 
     def get_makejail(self, service, next=True):
         return self.__get_service(service, next).get("makejail", director.default.MAKEJAIL)
+
+    def get_runtime_makejail(self, service, next=True):
+        return self.__get_service(service, next).get("runtime-makejail")
 
     def get_start_arguments(self, service, next=True):
         return self.__get_service(service, next).get("start", [])

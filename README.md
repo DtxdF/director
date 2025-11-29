@@ -202,6 +202,14 @@ DB_ROOT_PASS=my-secret-pw
 
 **description**: Makejail to be executed.
 
+#### runtime-makejail
+
+**type**: String.
+
+**description**: Like `makejail`, but uses `appjail-apply(1)` to apply a Makejail to an existing jail, which in this case occurs after Director starts the jail (if the Makejail specified in `makejail` doesn't do so). This Makejail is applied every time `appjail-director up` is run, so some logic should be added depending on the task performed to avoid unwanted behavior. Useful for updating an existing file and/or hot reloading. See `post-start` in `scripts`, which has a similar purpose but does not use Makejails.
+
+Please note that you must explicitly specify the `apply` stage in the Makejail specified by this parameter in order to execute the code.
+
 #### reset\_options
 
 **type**: Boolean.
@@ -223,6 +231,18 @@ It has the same effect as the global `options`, but only for the services in whi
 **type**: Array of dictionaries. Each dictionary (key and value) is a string.
 
 **description**: Arguments to pass to the Makejail to be executed.
+
+#### runtime-arguments
+
+**type**: Array of dictionaries. Each dictionary (key and value) is a string.
+
+**description**: Arguments to pass to the Makejail specified in `runtime-makejail`.
+
+#### runtime-environment
+
+**type**: Array of dictionaries. Each dictionary (key and value) is a string. The value can be left empty.
+
+**description**: Environment variables valid only in the `apply` stage.
 
 #### environment
 

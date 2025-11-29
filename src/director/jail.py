@@ -169,6 +169,43 @@ def is_dirty(jail, timeout=None, env=None):
     else:
         return proc.returncode
 
+def apply_makejail(jail, makejail, output=None, arguments=[], environment=[], timeout=None, shell_env=None):
+    if shell_env is None:
+        shell_env = os.environ.copy()
+        shell_env["GIT_ASKPASS"] = "true"
+
+    cmd = [
+        get_appjail_script(), "apply",
+        jail, makejail
+    ]
+
+    # Environment.
+
+    for env in environment:
+        env_key, env_val = __ydict2tuple(env)
+
+        if env_val is None:
+            cmd.extend(["-V", env_key])
+        else:
+            cmd.extend(["-V", f"{env_key}={env_val}"])
+
+    # Arguments.
+
+    if arguments:
+        cmd.append("--")
+
+    for argument in arguments:
+        arg_name, arg_val = __ydict2tuple(argument)
+
+        if arg_val is None:
+            cmd.extend([f"--{arg_name}"])
+        else:
+            cmd.extend([f"--{arg_name}", arg_val])
+
+    # Profit!
+
+    return _run(cmd, output, timeout, shell_env, jail)
+
 def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=(), options=[], timeout=None, shell_env=None):
     if shell_env is None:
         shell_env = os.environ.copy()

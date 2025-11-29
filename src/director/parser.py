@@ -103,11 +103,14 @@ def __check_service(service, name, nro):
         "priority",
         "name",
         "makejail",
+        "runtime-makejail",
         "reset_options",
         "ignore_mtime",
         "options",
         "arguments",
+        "runtime-arguments",
         "environment",
+        "runtime-environment",
         "start-environment",
         "oci",
         "volumes",
@@ -141,6 +144,13 @@ def __check_service(service, name, nro):
 
         service["makejail"] = makejail
 
+    runtime_makejail = service.get("runtime-makejail")
+
+    if runtime_makejail is not None and not isinstance(runtime_makejail, str):
+        runtime_makejail = str(runtime_makejail)
+
+        service["runtime-makejail"] = runtime_makejail
+
     reset_options = service.get("reset_options")
 
     if reset_options is not None and not isinstance(reset_options, bool):
@@ -161,10 +171,20 @@ def __check_service(service, name, nro):
     if arguments is not None:
         service["arguments"] = _fix_non_str_list(arguments, f"{_id}/arguments", False)
 
+    runtime_arguments = service.get("runtime-arguments")
+
+    if runtime_arguments is not None:
+        service["runtime-arguments"] = _fix_non_str_list(runtime_arguments, f"{_id}/runtime-arguments", False)
+
     environment = service.get("environment")
 
     if environment is not None:
         service["environment"] = _fix_non_str_list(environment, f"{_id}/environment")
+
+    runtime_environment = service.get("runtime-environment")
+
+    if runtime_environment is not None:
+        service["runtime-environment"] = _fix_non_str_list(runtime_environment, f"{_id}/runtime-environment")
 
     start_environment = service.get("start-environment")
 
