@@ -541,8 +541,6 @@ def up(file, json, project, quiet, overwrite):
                         if returncode == 0:
                             _print("Done.", quiet=quiet)
                         else:
-                            project_obj.set_fail(service)
-
                             _print("FAIL!", quiet=quiet)
 
                             JSON_OUTPUT["failed"].append({ "type" : "runtime-makejail", "service" : service })

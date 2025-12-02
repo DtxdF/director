@@ -208,6 +208,8 @@ DB_ROOT_PASS=my-secret-pw
 
 **description**: Like `makejail`, but uses `appjail-apply(1)` to apply a Makejail to an existing jail, which in this case occurs after Director starts the jail (if the Makejail specified in `makejail` doesn't do so). This Makejail is applied every time `appjail-director up` is run, so some logic should be added depending on the task performed to avoid unwanted behavior. Useful for updating an existing file and/or hot reloading. See `post-start` in `scripts`, which has a similar purpose but does not use Makejails.
 
+If this Makejail fails, Director will not set the service as failed because, if it did, the service would be recreated on the next execution, which is not desirable in this context.
+
 Please note that you must explicitly specify the `apply` stage in the Makejail specified by this parameter in order to execute the code.
 
 #### reset\_options
