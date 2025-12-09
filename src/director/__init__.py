@@ -613,7 +613,8 @@ def _run_scripts(scripts, log, service, is_post_start, jail, command_timeout, qu
             if returncode == 0:
                 _print("ok.", quiet=quiet)
             else:
-                project_obj.set_fail(service)
+                if phase != "post-start":
+                    project_obj.set_fail(service)
 
                 _print("FAIL!", quiet=quiet)
 
