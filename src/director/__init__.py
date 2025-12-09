@@ -514,6 +514,10 @@ def up(file, json, project, quiet, overwrite):
 
                             sys.exit(returncode)
 
+                # Runtime scripts and runtime Makejails should not change the service state,
+                # as it is preferable to avoid recreation (and therefore downtime).
+                project_obj.set_done(service)
+
                 # Scripts (post-start).
 
                 scripts = project_obj.get_scripts(service)
@@ -547,8 +551,6 @@ def up(file, json, project, quiet, overwrite):
                             JSON_OUTPUT["errlevel"] = returncode
 
                             sys.exit(returncode)
-
-                project_obj.set_done(service)
 
             # Done.
             GLOBAL_STATE = director.project.STATE_DONE
