@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
+# Copyright (c) 2023-2026, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -266,6 +266,7 @@ def up(file, json, project, quiet, overwrite):
 
                 if director.jail.check(jail) == 0:
                     do_nothing = False
+                    do_destroy = True
 
                     # To be reliable, the last log must be set before creating a log file. It is not
                     # a good idea to do this at the start of the context manager as we lie to the
@@ -274,6 +275,9 @@ def up(file, json, project, quiet, overwrite):
                     project_obj.set_key("last_log", log.directory)
 
                     if director.jail.status(jail) == 0:
+                        if director.jail.is_ephemeral(jail) == 1:
+                            do_destroy = False
+
                         with log.open(os.path.join(service, "stop.log")) as fd:
                             _print(f"Stopping {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
@@ -286,29 +290,30 @@ def up(file, json, project, quiet, overwrite):
 
                                 JSON_OUTPUT["failed"].append({ "type" : "stop", "service" : service })
 
-                    with log.open(os.path.join(service, "destroy.log")) as fd:
-                        _print(f"Destroying {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
+                    if do_destroy:
+                        with log.open(os.path.join(service, "destroy.log")) as fd:
+                            _print(f"Destroying {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
 
-                        returncode = director.jail.destroy(
-                            jail, fd, remove_recursive,
-                            remove_force
-                        )
+                            returncode = director.jail.destroy(
+                                jail, fd, remove_recursive,
+                                remove_force
+                            )
 
-                        if returncode == 0:
-                            _print("Done.", quiet=quiet)
+                            if returncode == 0:
+                                _print("Done.", quiet=quiet)
 
-                            # Remove service information if it is no longer really needed.
-                            if service not in services:
-                                project_obj.unset_key(service)
-                        else:
-                            project_obj.set_fail(service)
+                                # Remove service information if it is no longer really needed.
+                                if service not in services:
+                                    project_obj.unset_key(service)
+                            else:
+                                project_obj.set_fail(service)
 
-                            _print("FAIL!", quiet=quiet)
+                                _print("FAIL!", quiet=quiet)
 
-                            JSON_OUTPUT["failed"].append({ "type" : "destroy", "service" : service })
-                            JSON_OUTPUT["errlevel"] = returncode
+                                JSON_OUTPUT["failed"].append({ "type" : "destroy", "service" : service })
+                                JSON_OUTPUT["errlevel"] = returncode
 
-                            sys.exit(returncode)
+                                sys.exit(returncode)
 
             global_volumes = project_obj.get_volumes()
 
@@ -777,9 +782,14 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
                 service = service_dict["service"]
                 jail = project_obj.get_jail_name(service, where="current")
 
+                do_destroy = True
+
                 status = director.jail.status(jail)
 
                 if status == 0:
+                    if director.jail.is_ephemeral(jail) == 1:
+                        do_destroy = False
+
                     do_nothing = False
 
                     _print(f"Stopping {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)
@@ -793,7 +803,7 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
 
                         JSON_OUTPUT["failed"].append({ "type" : "stop", "service" : service })
 
-                if destroy:
+                if destroy and do_destroy:
                     do_nothing = False
 
                     _print(f"Destroying {service} ({jail}) ...", end=" ", flush=True, quiet=quiet)

@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
+# Copyright (c) 2023-2026, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -167,7 +167,7 @@ def is_dirty(jail, timeout=None, env=None):
     elif stdout == "1":
         return 1
     else:
-        return proc.returncode
+        return -1
 
 def apply_makejail(jail, makejail, output=None, arguments=[], environment=[], timeout=None, shell_env=None):
     if shell_env is None:
@@ -315,6 +315,36 @@ def makejail(jail, makejail, output=None, arguments=[], environment=[], volumes=
     # Profit!
 
     return _run(cmd, output, timeout, shell_env, jail)
+
+def is_ephemeral(jail, output=None, timeout=None, env=None):
+    cmd = [
+        get_appjail_script(), "jail", "get",
+        "--", jail, "ephemeral"
+    ]
+
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        timeout=timeout,
+        env=env
+    )
+
+    if proc.stdout is None:
+        return -1
+
+    stdout = proc.stdout.strip()
+
+    if stdout == "":
+        return -1
+
+    if stdout == "0":
+        return 0
+    elif stdout == "1":
+        return 1
+    else:
+        return -1
 
 def __ydict2tuple(d):
     return tuple(d.items())[0]
