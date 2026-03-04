@@ -470,9 +470,13 @@ def up(file, json, project, quiet, overwrite):
 
                         if oci_environment:
                             with log.open(os.path.join(service, "oci-environment.log")) as fd:
-                                _print("", "- Configuring the environment (OCI) ...", end=" ", flush=True, quiet=quiet)
+                                _print("", "- Configuring the environment (OCI):", quiet=quiet)
 
                                 for oci_env_var in oci_environment:
+                                    oci_env_key = tuple(oci_env_var.keys())[0]
+
+                                    _print("  ", f"- {oci_env_key} ...", end=" ", flush=True, quiet=quiet)
+
                                     returncode = director.jail.oci_set_environment(jail, oci_env_var, fd)
 
                                     if returncode == 0:
