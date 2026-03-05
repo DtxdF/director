@@ -133,44 +133,13 @@ def cli(config, env_file):
                 print(f"{config_file}: Exception while loading the configuration file: {err}")
                 sys.exit(EX_CONFIG)
 
-@cli.command(short_help="Create a project")
-@click.help_option()
-@click.option("-f", "--file", default=director.default.DIRECTOR_FILE, show_default=True, help="Specify an alternate director file.")
-@click.option("-j", "--json", is_flag=True, default=False, help="Output in JSON format.")
-@click.option("-p", "--project", help="Specify an alternate project name. If none is specified, a random name is used.")
-@click.option("-q", "--quiet", is_flag=True, default=False, help="Quiet mode: suppress normal output.")
-@click.option("--overwrite", is_flag=True, default=False, help="Re-create all services, even when it is not necessary.")
+@cli.command(add_help_option=False)
+@click.option("-f", "--file", default=director.default.DIRECTOR_FILE, show_default=True)
+@click.option("-j", "--json", is_flag=True, default=False)
+@click.option("-p", "--project")
+@click.option("-q", "--quiet", is_flag=True, default=False)
+@click.option("--overwrite", is_flag=True, default=False)
 def up(file, json, project, quiet, overwrite):
-    """
-    Reads a director file.
-
-    Any access to a file or directory specified in the Director file is relative
-    to it, not to the current directory in which AppJail Director is running.
-
-    When a Director file specified by --file is read, Director will perform
-    some checks to verify if it needs to create or recreate a service.
-
-    The checks that Director performs are: overwrite, differing, failed, mtime
-    and differing_options. overwrite will recreate the service if the --overwrite 
-    option is specified. differing will recreate the service if it differs from
-    the old file that is copied each time the up command is executed. failed will
-    recreate the service if it has previously failed in some way (e.g. creating
-    or starting it). mtime will recreate the service if the Makejail modification
-    time differs from the old one, but if ignore_mtime is specified this does not
-    apply. differering_options will recreate the service if the global options
-    change from the previous one, but if reset_options is true, it is ignored.
-    Of course, if a service does not exist, Director will create it. A service is
-    also created if the project is new (does not exist previously).
-
-    By default, when a project name is not specified using the --project option,
-    Director tries to read the DIRECTOR_PROJECT environment variable and, if it is
-    not set, a random name is chosen.
-
-    When removing a service (specifically, the jail), the remove_force and
-    remove_recursive options specified from the configuration file determine the
-    behavior of this action. 
-    """
-
     global USE_JSON_OUTPUT
     global JSON_OUTPUT
     global GLOBAL_STATE
@@ -687,25 +656,14 @@ def set_current_jail(jail):
 
     CURRENT_JAIL = jail
 
-@cli.command(short_help="Stop and/or destroy a project")
-@click.help_option()
-@click.option("-d", "--destroy", is_flag=True, default=False, help="Destroy the project after stopping it.")
-@click.option("-j", "--json", is_flag=True, default=False, help="Output in JSON format.")
-@click.option("-p", "--project", help="Project name.")
-@click.option("--ignore-failed", is_flag=True, default=False, help="Ignore services that are not destroyed.")
-@click.option("--ignore-services", is_flag=True, default=False, help="Ignore services.")
-@click.option("-q", "--quiet", is_flag=True, default=False, help="Quiet mode: suppress normal output.")
+@cli.command(add_help_option=False)
+@click.option("-d", "--destroy", is_flag=True, default=False)
+@click.option("-j", "--json", is_flag=True, default=False)
+@click.option("-p", "--project")
+@click.option("--ignore-failed", is_flag=True, default=False)
+@click.option("--ignore-services", is_flag=True, default=False)
+@click.option("-q", "--quiet", is_flag=True, default=False)
 def down(destroy, json, project, ignore_failed, ignore_services, quiet):
-    """
-    Stops the project and if the --destroy flag is used, it will be destroyed.
-    Destroy implies stopping and destroying all the jails in that project and
-    removing the project completely. Logs are not removed, you should remove
-    them manually using system commands when you don't need them.
-
-    The project name is obtained from the command-line option and, if not set,
-    from the DIRECTOR_PROJECT environment variable.
-    """
-
     global USE_JSON_OUTPUT
     global JSON_OUTPUT
     global GLOBAL_STATE
@@ -850,18 +808,9 @@ def down(destroy, json, project, ignore_failed, ignore_services, quiet):
     
     sys.exit(EX_OK)
 
-@cli.command(short_help="List projects")
-@click.help_option()
-@click.option("-s", "--state", default=director.project.STATES, multiple=True, show_default=True, help="Project status. Ignored when using --project. Can be specified several times.")
+@cli.command(add_help_option=False)
+@click.option("-s", "--state", default=director.project.STATES, multiple=True, show_default=True)
 def ls(state):
-    """
-    Lists projects.
-
-    In addition to simply displaying the project name, the current status
-    of the project is shown symbolically on the left side as follows:
-    + (DONE), - (FAILED), ! (UNFINISHED), x (DESTROYING), ? (UNKNOWN).
-    """
-
     # From the source code, this name makes more sense.
     states = state
 
@@ -936,21 +885,9 @@ def ls(state):
 
     sys.exit(EX_OK)
 
-@cli.command(short_help="Show information about a project")
-@click.help_option()
-@click.option("-p", "--project", help="Project name.")
+@cli.command(add_help_option=False)
+@click.option("-p", "--project")
 def info(project):
-    """
-    Show information about a project.
-
-    In addition to displaying the services, the current status of each service
-    is shown symbolically on the left side as follows: + (RUNNING), - (STOPPED),
-    ! (FAILED). In addition for !, the status code will be displayed.
-
-    The project name is obtained from the command-line option and, if not set,
-    from the DIRECTOR_PROJECT environment variable.
-    """
-
     if project is None:
         project = _get_project_name_from_env()
 
@@ -1022,14 +959,9 @@ def info(project):
     
     sys.exit(EX_OK)
 
-@cli.command(short_help="Show information about a project in JSON format")
-@click.help_option()
-@click.option("-p", "--project", help="Project name.")
+@cli.command(add_help_option=False)
+@click.option("-p", "--project")
 def describe(project):
-    """
-    Like `info` but in JSON format.
-    """
-
     if project is None:
         project = _get_project_name_from_env()
 
@@ -1097,14 +1029,9 @@ def describe(project):
 
     sys.exit(EX_OK)
 
-@cli.command(short_help="Check if a project exists")
-@click.help_option()
-@click.option("-p", "--project", help="Project name.")
+@cli.command(add_help_option=False)
+@click.option("-p", "--project")
 def check(project):
-    """
-    Returns 0 if a project exists or non-zero if it does not exist.
-    """
-
     if project is None:
         project = _get_project_name_from_env()
 
@@ -1130,17 +1057,9 @@ def check(project):
 
     sys.exit(EX_OK)
 
-@cli.command(short_help="Terminate a project in progress")
-@click.help_option()
-@click.option("-p", "--project", help="Project name.")
+@cli.command(add_help_option=False)
+@click.option("-p", "--project")
 def cancel(project):
-    """
-    Sends a SIGTERM signal to a running project.
-
-    For this to succeed, the project state must be UNFINISHED and the registered
-    parent PID must be the same as the parent PID of the currently running process.
-    """
-
     if project is None:
         project = _get_project_name_from_env()
 

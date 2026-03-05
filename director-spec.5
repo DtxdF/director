@@ -1,0 +1,380 @@
+.\"Copyright (c) 2026, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
+.\"All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions are met:
+.\"
+.\"* Redistributions of source code must retain the above copyright notice, this
+.\"  list of conditions and the following disclaimer.
+.\"
+.\"* Redistributions in binary form must reproduce the above copyright notice,
+.\"  this list of conditions and the following disclaimer in the documentation
+.\"  and/or other materials provided with the distribution.
+.\"
+.\"* Neither the name of the copyright holder nor the names of its
+.\"  contributors may be used to endorse or promote products derived from
+.\"  this software without specific prior written permission.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\"AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\"DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\"SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\"CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\"OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 05, 2026
+.Dt DIRECTOR-SPEC 5
+.Os
+.Sh NAME
+.Nm director-spec
+.Nd Director specification for configuration files
+.Sh CONFIGURATION
+.Ss logs
+.Bl -tag -width xxx
+.It Sy directory
+Directory where the logs will be stored.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em ~/.director/logs
+.El
+.Ss projects
+.Bl -tag -width xxx
+.It Sy directory
+Directory where the projects and its metadata will be stored.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em ~/.director/projects
+.El
+.Ss locks
+.Bl -tag -width xxx
+.It Sy directory
+Location of lock files.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em /tmp/director/locks
+.El
+.Ss jails
+.Bl -tag -width xxx
+.It Sy remove_recursive
+Only valid for ZFS. Recursively removes the jail and its references.
+.Pp
+.Sy type: No Boolean
+.br
+.Sy default: Em false
+.It Sy remove_force
+Only valid for ZFS. Forcibly removes the jail dataset.
+.Pp
+.Sy type: No Boolean
+.br
+.Sy default: Em true
+.El
+.Ss commands
+.Bl -tag -width xxx
+.It Sy timeout
+Timeout to avoid hangings caused by some operations such as the execution of an
+.Xr appjail-makejail(5)
+or some custom commands in your
+.Xr director-spec 5
+file.
+.Pp
+.Sy type: No Integer
+.br
+.Sy default: Em 1800
+.El
+.Sh SPECIFICATION
+.Bl -tag -width xxx
+.It Sy options
+Options that will be used by all services.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string. The value can be left empty.
+.It Sy services
+This dictionary contains the services to be created and started. Each key is
+the name of the service that must be valid with the following regular
+expression:
+.Do Sy ^[a-zA-Z0-9._-]+$ Dc Ns "."
+The name of the service is not the same as the name of the jail.
+.Pp
+.Sy type: No Dictionary.
+.It Sy services. Ns Ar service Ns Sy .priority
+Once the
+.Xr director-spec 5
+file has been processed, the services will be sorted using this number. Lower
+integers have higher priority, so those services will be processed first.
+.Pp
+.Sy type: No Integer
+.br
+.Sy default: Em 99
+.It Sy services. Ns Ar service Ns Sy .name
+Jail name. If not specified, a random hexadecimal string will be used.
+.Pp
+.Sy type: No String
+.It Sy services. Ns Ar service Ns Sy .makejail
+.Xr appjail-makejail 5
+to be executed.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em Makejail
+.It Sy services. Ns Ar service Ns Sy .runtime-makejail
+Like
+.Sy makejail Ns ,
+but uses
+.Xr appjail-apply 5
+to apply an
+.Xr appjail-makejail 5
+to an existing jail, which in this case occurs after
+.Xr director 1
+starts the jail
+.Po if the Xr appjail-makejail 5 specified in Sy makejail No doesn't do so Pc Ns "."
+This
+.Xr appjail-makejail 5
+is applied every time the
+.Sy up
+command is run, so some logic should be added depending on the task performed to
+avoid unwanted behavior. Useful for updating an existing file and/or hot reloading.
+See
+.Sy post-start
+in scripts, which has a similar purpose but does not use Makejails.
+.Pp
+If this
+.Xr appjail-makejail 5
+fails,
+.Xr director 1
+will not set the service as failed because, if it did, the service would be
+recreated on the next execution, which is not desirable in this context.
+.Pp
+Please note that you must explicitly specify the
+.Sy apply
+stage in the
+.Xr appjail-makejail 5
+specified by this parameter in order to execute the code.
+.Pp
+.Sy type: No String
+.It Sy services. Ns Ar service Ns Sy .reset_options
+The global options will be added to the local options. These options only take
+into account the local options per service.
+.Pp
+.Sy type: No Boolean
+.It Sy services. Ns Ar service Ns Sy .ignore_mtime
+Do not recreate the service when the
+.Xr appjail-makejail 5
+modification time changes.
+.Pp
+.Sy type: No Boolean
+.It Sy services. Ns Ar service Ns Sy .options
+It has the same effect as the global
+.Sy options Ns ,
+but only for the services in which it appears.
+.It Sy services. Ns Ar service Ns Sy .arguments
+Arguments to pass to the
+.Xr appjail-makejail 5
+to be executed.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string.
+.It Sy services. Ns Ar service Ns Sy .runtime-arguments
+Arguments to pass to the
+.Xr appjail-makejail 5
+specified in runtime-makejail.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string.
+.It Sy services. Ns Ar service Ns Sy .runtime-environment
+Environment variables valid only in the
+.Sy apply
+stage.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string. The value can be left empty.
+.It Sy services. Ns Ar service Ns Sy .environment
+Environment variables valid only in the
+.Sy build
+stage.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string. The value can be left empty.
+.It Sy services. Ns Ar service Ns Sy .start-environment
+Environment variables valid only in the
+.Sy start
+stage.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string. The value can be left empty.
+.It Sy services. Ns Ar service Ns Sy .oci
+Settings used by OCI-related commands.
+.Pp
+.Sy type: No Dictionary
+.It Sy services. Ns Ar service Ns Sy .oci.user
+Execute the process specified by the OCI image as another user.
+.Pp
+.Sy type: No String
+.It Sy services. Ns Ar service Ns Sy .oci.workdir
+Execute the process specified by the OCI image in this working directory.
+.Pp
+.Sy type: No String
+.It Sy services. Ns Ar service Ns Sy .oci.environment
+Environment variables used by the process specified by the OCI image.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string. The value can be left empty.
+.It Sy services. Ns Ar service Ns Sy .volumes
+The key of each dictionary is used to obtain the volume options specified by the global
+.Sy volumes Ns "."
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string.
+.It Sy services. Ns Ar service Ns Sy .scripts
+Scripts that will be executed once the jail is created and started.
+.Pp
+.Sy type: No Array of dictionaries.
+.It Sy services. Ns Ar service Ns Sy .scripts.[].shell
+Shell used to execute the script.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em /bin/sh -c
+.It Sy services. Ns Ar service Ns Sy .scripts.[].type
+In which environment the script will be executed:
+.Sy jexec Po inside the jail Pc Ns ,
+.Sy local Po in the host Pc Ns ,
+or
+.Sy chroot Po inside the chroot environment Pc Ns "."
+.Pp
+See also
+.Xr appjail-cmd 1
+for details.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em jexec
+.It Sy services. Ns Ar service Ns Sy .scripts.[].text
+Script to be executed.
+.Pp
+.Sy type: No String
+.It Sy services. Ns Ar service Ns Sy .scripts.[].post-start
+By default,
+.Xr director 1
+executes the script before checking the status of the jail, which means that the
+jail may or may not be started. When this parameter is set to
+.Sy true Ns ,
+the script runs after this check, and this occurs every time the project runs,
+so you must add logic to your script to prevent unwanted changes. This is
+especially useful when you need to update a configuration file and/or perform
+a hot reload.
+.Pp
+.Sy type: No Boolean
+.br
+.Sy default: Em false
+.It Sy services. Ns Ar service Ns Sy .start
+Arguments to be passed to the
+.Sy start
+stage.
+.Pp
+.Sy type: No Array of dictionaries. Each dictionary
+.Pq key and value
+is a string.
+.It Sy services. Ns Ar service Ns Sy .serial
+.Xr director 1
+detects changes to rerun the
+.Xr appjail-makejail 5 Ns ,
+this item forces the execution of the
+.Xr appjail-makejail 5 Ns "."
+.Pp
+.Sy type: No String
+.It Sy default_volume_type
+Default volume type when
+.Sy type
+is not defined in
+.Sy volumes. Ns Ar volume Ns "."
+.It Sy volumes
+Describe the volume options used by the services.
+.Pp
+.Sy type: No Dictionary
+.It Sy volumes. Ns Ar volume Ns Sy .device
+Device to be mounted.
+.Pp
+.Sy type: No String
+.It Sy volumes. Ns Ar volume Ns Sy .type
+Type of the file system. When using
+.Sy nullfs Ns , Sy <pseudofs> No or Sy <volumefs> Ns ,
+.Sy device
+is treated as a directory
+.Po when it doesn't exist Pc
+and after getting the absolute path it will be used as the actual device.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em <pseudofs>
+.It Sy volumes. Ns Ar volume Ns Sy .options
+Mount point options associated with the file system.
+.Pp
+.Sy type: No String
+.br
+.Sy default: Em rw
+.It Sy volumes. Ns Ar volume Ns Sy .dump
+Whether
+.Xr dump 8
+command should be used for those file systems that need to be dumped.
+.Pp
+.Sy type: No Integer
+.br
+.Sy default: Em 0
+.It Sy volumes. Ns Ar volume Ns Sy .pass
+Used by
+.Xr fsck 8
+and
+.Xr quotacheck 8
+commands to determine the order in which file system and quota checks are done at reboot time.
+.Pp
+.Sy type: No Integer
+.br
+.Sy default: Em 0
+.It Sy volumes. Ns Ar volume Ns Sy .umask
+Valid only for
+.Sy nullfs Ns , Sy <pseudofs> No and Sy <volumefs>
+file systems. When defined, the umask is set before the creation of the directory
+.Pq aka device
+and is restored after the directory is created.
+.Pp
+.Sy type: No Integer
+.It Sy volumes. Ns Ar volume Ns Sy .mode
+Valid only for
+.Sy nullfs Ns , Sy <pseudofs> No and Sy <volumefs>
+file systems. Change the access permissions of the directory
+.Pq aka device
+after its creation.
+.Pp
+.Sy type: No Integer
+.It Sy volumes. Ns Ar volume Ns Sy .owner
+Valid only for
+.Sy nullfs Ns , Sy <pseudofs> No and Sy <volumefs>
+file systems. When defined, the directory owner is set after the creation of the
+directory
+.Po aka device Pc Ns "."
+Note that if you use a string instead of an integer, it will be resolved from
+your local user database.
+.It Sy volumes. Ns Ar volume Ns Sy .group
+It has the same effect as
+.Sy owner Ns ,
+but for the device group.
+.El
+.Sh SEE ALSO
+.Xr appjail 1
+.Xr director 1
+.Sh AUTHORS
+.An Jesús Daniel Colmenares Oviedo Aq Mt DtxdF@disroot.org

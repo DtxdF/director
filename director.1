@@ -1,0 +1,290 @@
+.\"Copyright (c) 2026, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
+.\"All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions are met:
+.\"
+.\"* Redistributions of source code must retain the above copyright notice, this
+.\"  list of conditions and the following disclaimer.
+.\"
+.\"* Redistributions in binary form must reproduce the above copyright notice,
+.\"  this list of conditions and the following disclaimer in the documentation
+.\"  and/or other materials provided with the distribution.
+.\"
+.\"* Neither the name of the copyright holder nor the names of its
+.\"  contributors may be used to endorse or promote products derived from
+.\"  this software without specific prior written permission.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\"AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\"DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\"SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\"CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\"OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\"OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd March 04, 2026
+.Dt DIRECTOR 1
+.Os
+.Sh NAME
+.Nm appjail-director
+.Nd Define and run multi-jail environments with AppJail
+.Sh SYNOPSIS
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm up
+.Op Fl Fl json
+.Op Fl Fl overwrite
+.Op Fl Fl quiet
+.Op Fl Fl file Ar file
+.Op Fl Fl project Ar name
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm down
+.Op Fl Fl ignore-failed
+.Op Fl Fl ignore-services
+.Op Fl Fl json
+.Op Fl Fl quiet
+.Op Fl Fl destroy
+.Op Fl Fl project Ar name
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm ls
+.Op Fl Fl state Ar state
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm info
+.Op Fl Fl project Ar name
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm describe
+.Op Fl Fl project Ar name
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm check
+.Op Fl Fl project Ar name
+.Nm
+.Op Fl Fl config Ar file
+.Op Fl Fl env-file Ar file
+.Cm cancel
+.Op Fl Fl project Ar name
+.Sh DESCRIPTION
+.Nm
+is a tool for running multi-jail environments on
+.Xr appjail 1
+using a simple YAML specification. A
+.Xr director-spec 5
+file is used to define how one or more jails that make up your application are configured. Once you have a
+.Xr director-spec 5
+file, you can create and start your application with a single command:
+.Sy appjail-director up Ns "."
+.Pp
+The configuration files are loaded in the following order:
+.Pa %%PREFIX%%/etc/director.ini Ns , Pa ~/.config/director/director.ini Ns , from the environment variable
+.Ev DIRECTOR_CONFIG
+and from the
+.Fl Fl config
+option. Only the first two are loaded if they exist, otherwise they are ignored. When specifying the configuration file from the environment variable or from the command-line option, you must be sure that these files exist, otherwise an error will be displayed.
+.Pp
+An environment file specified by
+.Fl Fl env-file
+is loaded if it exists, otherwise it is ignored. This file is very useful for when you need to put some secrets or some dynamic values in your
+.Xr director-spec 5
+file but they should not be in it and probably not in a repository either.
+.Pp
+.Bl -tag -width xxx
+.It Cm up Oo Fl Fl json Oc Oo Fl Fl overwrite Oc Oo Fl Fl quiet Oc Oo Fl Fl file Ar file Oc Oo Fl Fl project Ar name Oc
+Reads a
+.Xr director-spec 5
+file.                                                                                                                                       
+.Pp                                                                                                                                                           
+Any access to a file or directory specified in the
+.Xr director-spec 5
+file is relative to it, not to the current directory in which
+.Nm
+is running.
+.Pp
+When a
+.Xr director-spec 5
+file specified by
+.Fl Fl file
+is read,
+.Nm
+will perform some checks to verify if it needs to create or recreate a service.
+.Pp
+The checks that
+.Nm
+performs are:
+.Sy overwrite Ns , Sy differing Ns , Sy failed Ns , Sy mtime No and Sy  differing_options Ns "."
+.Sy overwrite
+will recreate the service if the
+.Fl Fl overwrite
+option is specified.
+.Sy differing
+will recreate the service if it differs from the old file that is copied each time the
+.Cm up
+command is executed.
+.Sy failed
+will recreate the service if it has previously failed in some way
+.Po e.g. creating or starting it Pc Ns "."
+.Sy mtime
+will recreate the service if the
+.Xr appjail-makejail 5
+modification time differs from the old one, but if
+.Sy ignore_mtime
+is specified this does not apply.
+.Sy differing_options
+will recreate the service if the global options change from the previous one, but if
+.Sy reset_options
+is
+.Sy true Ns , it is ignored. Of course, if a service does not exist,
+.Nm
+will create it. A service is also created if the project is new
+.Po does not exist previously Pc Ns "."
+.Pp
+By default, when a project is not specified using the
+.Fl Fl project
+option,
+.Nm
+tries to read the
+.Ev DIRECTOR_PROJECT
+environment variable and, if it is not set, a random name is chosen.
+.Pp
+When removing a service
+.Po specifically, the jail Pc Ns , the
+.Sy remove_force
+and
+.Sy remove_recursive
+options specified from the configuration file determine the behavior of this action.
+.Bl -tag -width xx
+.It Fl j Ns , No Fl Fl json
+Output in JSON format.
+.It Fl Fl overwrite
+Recreate all services, even when it is not necessary.
+.It Fl q Ns , No Fl Fl quiet
+Quiet mode: suppress normal output.
+.It Fl f Ar file Ns , No Fl Fl file Ar file
+Specify an alternate
+.Xr director-spec 5
+file.
+.Pp
+Default:
+.Em appjail-director.yml
+.It Fl p Ar name Ns , No Fl Fl project Ar name
+Specify an alternate name. If none is specified, a random name is used.
+.El
+.It Cm down Oo Fl Fl ignore-failed Oc Oo Fl Fl ignore-services Oc Oo Fl Fl json Oc Oo Fl Fl quiet Oc Oo Fl Fl destroy Oc Oo Fl Fl project Ar name Oc
+Stops the project and if the
+.Fl Fl destroy
+flag is used, it will be destroyed. Destroy implies stopping and destroying all
+the jails in that project and removing the project completely. Logs are not
+removed, you should remove them manually using system commands when you don't
+need them.
+.Pp
+The project name is obtained from the command-line option and, if not set, from
+the
+.Ev DIRECTOR_PROJECT
+environment variable.
+.Bl -tag -width xx
+.It Fl Fl ignore-failed
+Ignore services that are not destroyed.
+.It Fl Fl ignore-services
+Ignore services.
+.It Fl j Ns , No Fl Fl json
+Output in JSON format.
+.It Fl q Ns , No Fl Fl quiet
+Quiet mode: suppress normal output.
+.It Fl d Ns , No Fl Fl destroy
+Destroy the project after stopping and destroying each service.
+.It Fl p Ar name Ns , No Fl Fl project Ar name
+Project name.
+.El
+.It Cm ls Oo Fl Fl state Ar state Oc
+Lists projects.
+.Pp
+In addition to simply displaying the project name, the current status of the
+project is shown symbolically on the left side as follows:
+.Sy +
+.Po Sy DONE Pc Ns ,
+.Sy -
+.Po Sy FAILED Pc Ns ,
+.Sy ! No
+.Po Sy UNFINISHED Pc Ns ,
+.Sy x
+.Po Sy DESTROYING Pc Ns ,
+.Sy ?
+.Po Sy UNKNOWN Pc Ns "."
+.Bl -tag -width xx
+.It Fl s Ar state Ns , No Fl Fl state Ar state
+Project status.
+.Pp
+Default:
+.Em done Ns , Em failed Ns , Em unfinished No and Em destroying
+.El
+.It Cm info Oo Fl Fl project Ar name Oc
+Show information about a project.
+.Pp
+In addition to displaying the services, the current status of each service is
+shown symbolically on the left side as follows:
+.Sy +
+.Po Sy RUNNING Pc Ns ,
+.Sy -
+.Po Sy STOPPED Pc Ns ,
+.Sy ! No
+.Po Sy FAILED Pc Ns "."
+In addition for
+.Sy ! Ns , the status code will be displayed.
+.Pp
+The project name is obtained from the command-line option and, if not set, from the
+.Ev DIRECTOR_PROJECT
+environment variable.
+.It Cm describe Oo Fl Fl project Ar name Oc
+Like
+.Cm info
+but in JSON format.
+.Bl -tag -width xx
+.It Fl p Ar name Ns , No Fl Fl project Ar name
+Project name.
+.El
+.It Cm check Oo Fl Fl project Ar name Oc
+Returns
+.Sy 0
+if a project exists or non-zero if it does not exist.
+.Bl -tag -width xx
+.It Fl p Ar name Ns , No Fl Fl project Ar name
+Project name.
+.El
+.It Cm cancel Oo Fl Fl project Ar name Oc
+Sends a
+.Sy SIGTERM
+signal to a running project.
+.Pp
+For this to succeed, the project state must be
+.Sy UNFINISHED
+and the registered parent PID must be the same as the parent PID of the
+currently running process.
+.Bl -tag -width xx
+.It Fl p Ar name Ns , No Fl Fl project Ar name
+Project name.
+.El
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width xxx
+.It DIRECTOR_CONFIG
+Configuration file.
+.It DIRECTOR_PROJECT
+Project name.
+.El
+.Sh SEE ALSO
+.Xr appjail 1
+.Xr director-spec 5
+.Sh AUTHORS
+.An Jesús Daniel Colmenares Oviedo Aq Mt DtxdF@disroot.org
