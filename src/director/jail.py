@@ -27,6 +27,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import json
 import os
 import random
 import shlex
@@ -51,6 +52,23 @@ def cmd(jail, text, shell="/bin/sh -c", type="jexec", output=None, timeout=None,
 
     cmd.extend(shlex.split(shell))
     cmd.append(text)
+
+    return _run(cmd, output, timeout, env)
+
+def oci_set_entrypoint(jail, entrypoint, output=None, timeout=None, env=None):
+    entrypoint = json.dumps(entrypoint)
+
+    cmd = [
+        get_appjail_script(), "oci", "set-entrypoint", jail, entrypoint
+    ]
+
+    return _run(cmd, output, timeout, env)
+
+def oci_set_arguments(jail, arguments, output=None, timeout=None, env=None):
+    cmd = [
+        get_appjail_script(), "oci", "set-args", jail
+    ]
+    cmd.extend(arguments)
 
     return _run(cmd, output, timeout, env)
 

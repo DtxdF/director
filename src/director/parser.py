@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 #
-# Copyright (c) 2023, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
+# Copyright (c) 2023-2026, Jesús Daniel Colmenares Oviedo <DtxdF@disroot.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -57,7 +57,7 @@ def validate(document):
     options = document.get("options")
 
     if options is not None:
-        document["options"] = _fix_non_str_list(options, "options")
+        document["options"] = _fix_non_str_dict_list(options, "options")
 
     services = document.get("services")
 
@@ -164,38 +164,48 @@ def __check_service(service, name, nro):
     options = service.get("options")
 
     if options is not None:
-        service["options"] = _fix_non_str_list(options, f"{_id}/options")
+        service["options"] = _fix_non_str_dict_list(options, f"{_id}/options")
 
     arguments = service.get("arguments")
 
     if arguments is not None:
-        service["arguments"] = _fix_non_str_list(arguments, f"{_id}/arguments", False)
+        service["arguments"] = _fix_non_str_dict_list(arguments, f"{_id}/arguments", False)
 
     runtime_arguments = service.get("runtime-arguments")
 
     if runtime_arguments is not None:
-        service["runtime-arguments"] = _fix_non_str_list(runtime_arguments, f"{_id}/runtime-arguments", False)
+        service["runtime-arguments"] = _fix_non_str_dict_list(runtime_arguments, f"{_id}/runtime-arguments", False)
 
     environment = service.get("environment")
 
     if environment is not None:
-        service["environment"] = _fix_non_str_list(environment, f"{_id}/environment")
+        service["environment"] = _fix_non_str_dict_list(environment, f"{_id}/environment")
 
     runtime_environment = service.get("runtime-environment")
 
     if runtime_environment is not None:
-        service["runtime-environment"] = _fix_non_str_list(runtime_environment, f"{_id}/runtime-environment")
+        service["runtime-environment"] = _fix_non_str_dict_list(runtime_environment, f"{_id}/runtime-environment")
 
     start_environment = service.get("start-environment")
 
     if start_environment is not None:
-        service["start-environment"] = _fix_non_str_list(start_environment, f"{_id}/start-environment")
+        service["start-environment"] = _fix_non_str_dict_list(start_environment, f"{_id}/start-environment")
 
     oci = service.get("oci")
 
     if oci is not None:
         if not isinstance(oci, dict):
             raise director.exceptions.InvalidSpec(f"{_id} (oci / #{nro}): Must be a Mapping.")
+
+        oci_entrypoint = oci.get("entrypoint")
+
+        if oci_entrypoint is not None:
+            oci["entrypoint"] = _fix_non_str_list(oci_entrypoint, f"{_id}/oci/entrypoint")
+
+        oci_arguments = oci.get("arguments")
+
+        if oci_arguments is not None:
+            oci["arguments"] = _fix_non_str_list(oci_arguments, f"{_id}/oci/arguments")
 
         oci_user = oci.get("user")
 
@@ -214,12 +224,12 @@ def __check_service(service, name, nro):
         oci_environment = oci.get("environment")
 
         if oci_environment is not None:
-            oci["environment"] = _fix_non_str_list(oci_environment, f"{_id}/oci/environment", False)
+            oci["environment"] = _fix_non_str_dict_list(oci_environment, f"{_id}/oci/environment", False)
 
     volumes = service.get("volumes")
 
     if volumes is not None:
-        service["volumes"] = _fix_non_str_list(volumes, f"{_id}/volumes", False)
+        service["volumes"] = _fix_non_str_dict_list(volumes, f"{_id}/volumes", False)
 
     scripts = service.get("scripts")
 
@@ -229,7 +239,7 @@ def __check_service(service, name, nro):
     start = service.get("start")
 
     if start is not None:
-        service["start"] = _fix_non_str_list(start, f"{_id}/start", False)
+        service["start"] = _fix_non_str_dict_list(start, f"{_id}/start", False)
 
     serial = service.get("serial")
 
@@ -385,7 +395,24 @@ def __check_allowed_key(allowed_keys, name, data):
         if key not in allowed_keys:
             raise director.exceptions.InvalidSpec(f"{name}: Unknown key \"{key}\".")
 
-def _fix_non_str_list(data, name, allow_none=True):
+def _fix_non_str_list(data, name):
+    if not isinstance(data, list):
+        raise director.exceptions.InvalidSpec(f"{name}: Must be a List.")
+
+    l = []
+
+    for nro, e in enumerate(data, 1):
+        if e is None:
+            raise director.exceptions.InvalidSpec(f"{name} (#{nro}): Value required but not defined.")
+
+        if not isinstance(e, str):
+            e = str(e)
+
+        l.append(e)
+
+    return l
+
+def _fix_non_str_dict_list(data, name, allow_none=True):
     if not isinstance(data, list):
         raise director.exceptions.InvalidSpec(f"{name}: Must be a List.")
 

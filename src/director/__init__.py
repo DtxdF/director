@@ -395,6 +395,46 @@ def up(file, json, project, quiet, overwrite):
                     oci = project_obj.get_oci(service)
 
                     if oci:
+                        oci_entrypoint = oci.get("entrypoint")
+
+                        if oci_entrypoint is not None:
+                            with log.open(os.path.join(service, "oci-entrypoint.log")) as fd:
+                                _print("", "- Configuring the entrypoint (OCI) ...", end=" ", flush=True, quiet=quiet)
+
+                                returncode = director.jail.oci_set_entrypoint(jail, oci_entrypoint, fd)
+
+                                if returncode == 0:
+                                    _print("Done.", quiet=quiet)
+                                else:
+                                    project_obj.set_fail(service)
+
+                                    _print("FAIL!", quiet=quiet)
+
+                                    JSON_OUTPUT["failed"].append({ "type" : "oci-entrypoint", "service" : service })
+                                    JSON_OUTPUT["errlevel"] = returncode
+
+                                    sys.exit(returncode)
+
+                        oci_arguments = oci.get("arguments")
+
+                        if oci_arguments is not None:
+                            with log.open(os.path.join(service, "oci-arguments.log")) as fd:
+                                _print("", "- Configuring the arguments (OCI) ...", end=" ", flush=True, quiet=quiet)
+
+                                returncode = director.jail.oci_set_arguments(jail, oci_arguments, fd)
+
+                                if returncode == 0:
+                                    _print("Done.", quiet=quiet)
+                                else:
+                                    project_obj.set_fail(service)
+
+                                    _print("FAIL!", quiet=quiet)
+
+                                    JSON_OUTPUT["failed"].append({ "type" : "oci-arguments", "service" : service })
+                                    JSON_OUTPUT["errlevel"] = returncode
+
+                                    sys.exit(returncode)
+
                         oci_user = oci.get("user")
 
                         if oci_user is not None:
