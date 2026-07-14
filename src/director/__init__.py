@@ -399,7 +399,7 @@ def up(file, json, project, quiet, overwrite):
 
                         if oci_entrypoint is not None:
                             with log.open(os.path.join(service, "oci-entrypoint.log")) as fd:
-                                _print("", "- Configuring the entrypoint (OCI) ...", end=" ", flush=True, quiet=quiet)
+                                _print("", "- Configuring entrypoint (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 returncode = director.jail.oci_set_entrypoint(jail, oci_entrypoint, fd)
 
@@ -419,7 +419,7 @@ def up(file, json, project, quiet, overwrite):
 
                         if oci_arguments is not None:
                             with log.open(os.path.join(service, "oci-arguments.log")) as fd:
-                                _print("", "- Configuring the arguments (OCI) ...", end=" ", flush=True, quiet=quiet)
+                                _print("", "- Configuring arguments (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 returncode = director.jail.oci_set_arguments(jail, oci_arguments, fd)
 
@@ -439,7 +439,7 @@ def up(file, json, project, quiet, overwrite):
 
                         if oci_user is not None:
                             with log.open(os.path.join(service, "oci-user.log")) as fd:
-                                _print("", "- Configuring the user (OCI) ...", end=" ", flush=True, quiet=quiet)
+                                _print("", "- Configuring user (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 returncode = director.jail.oci_set_user(jail, oci_user, fd)
 
@@ -459,7 +459,7 @@ def up(file, json, project, quiet, overwrite):
 
                         if oci_workdir is not None:
                             with log.open(os.path.join(service, "oci-workdir.log")) as fd:
-                                _print("", "- Configuring the working directory (OCI) ...", end=" ", flush=True, quiet=quiet)
+                                _print("", "- Configuring working directory (OCI) ...", end=" ", flush=True, quiet=quiet)
 
                                 returncode = director.jail.oci_set_workdir(jail, oci_workdir, fd)
 
@@ -479,7 +479,7 @@ def up(file, json, project, quiet, overwrite):
 
                         if oci_environment:
                             with log.open(os.path.join(service, "oci-environment.log")) as fd:
-                                _print("", "- Configuring the environment (OCI):", quiet=quiet)
+                                _print("", "- Configuring environment (OCI):", quiet=quiet)
 
                                 for oci_env_var in oci_environment:
                                     oci_env_key = tuple(oci_env_var.keys())[0]
