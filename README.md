@@ -16,23 +16,26 @@ A Director file looks like this:
 options:
   - virtualnet: ':<random> default'
   - nat:
+
 services:
-  web:
-    makejail: Makejail
-    options:
-      - expose: 5000
-    volumes:
-      - appdata: /app/data
-  mariadb:
+  db:
+    name: mariadb
     makejail: gh+AppJail-makejails/mariadb
-    arguments:
-      - mariadb_user: 'example-user'
-      - mariadb_password: 'my_cool_secret'
-      - mariadb_database: 'appdb'
-      - mariadb_root_password: 'my-secret-pw'
-volumes:
-  appdata:
-    device: ./appdata
+    oci:
+      environment:
+        - MARIADB_ROOT_PASSWORD: example
+    options:
+      - container: 'args:--pull'
+
+  phpmyadmin:
+    name: phpmyadmin
+    makejail: gh+AppJail-makejails/phpmyadmin
+    oci:
+      environment:
+        - PMA_ARBITRARY: 1
+    options:
+      - expose: '8080:80'
+      - container: 'args:--pull'
 ```
 
 ## Installation
@@ -40,7 +43,7 @@ volumes:
 **Bleeding-edge version**:
 
 ```sh
-pkg install -y py311-pipx
+pkg install -y py312-pipx
 pipx install git+https://github.com/DtxdF/director.git
 appjail-director --help
 ```
@@ -50,7 +53,7 @@ appjail-director --help
 **Stable version**:
 
 ```sh
-pkg install -y py311-director
+pkg install -y py312-director
 ```
 
 [AppJail](https://appjail.readthedocs.io/en/latest/install) must be installed before using Director.
