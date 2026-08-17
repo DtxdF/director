@@ -393,6 +393,50 @@ tag. For example,
 will be replaced with the value stored in the
 .Ev DB_PASSWORD
 environment variable.
+.Sh EXAMPLES
+Using AppJail Director is a three-step process:
+.Bl -enum
+.It
+Define your app's environment with a
+.Pa Makejail
+so it can be reproduced anywhere.
+.It
+Define the services that make up your app in
+.Pa appjail-director.yml
+so they can be run together in an isolated environment.
+.It
+Lastly, run
+.Li appjail-director up
+and Director will start and run your entire app.
+.Pp
+A Director file looks like this:
+.Pp
+.Bd -literal -compact -offset Ds
+options:
+  - virtualnet: ':<random> default'
+  - nat:
+
+services:
+  db:
+    name: mariadb
+    makejail: gh+AppJail-makejails/mariadb
+    oci:
+      environment:
+        - MARIADB_ROOT_PASSWORD: example
+    options:
+      - container: 'args:--pull'
+
+  phpmyadmin:
+    name: phpmyadmin
+    makejail: gh+AppJail-makejails/phpmyadmin
+    oci:
+      environment:
+        - PMA_ARBITRARY: 1
+    options:
+      - expose: '8080:80'
+      - container: 'args:--pull'
+.Ed
+.El
 .Sh SEE ALSO
 .Xr appjail 1
 .Xr director 1
