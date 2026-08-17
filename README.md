@@ -83,13 +83,17 @@ services:
       - expose: 5000
     volumes:
       - appdata: /app/data
-  mariadb:
+  db:
+    name: mariadb
     makejail: gh+AppJail-makejails/mariadb
-    arguments:
-      - mariadb_user: !ENV '${DB_USER}'
-      - mariadb_password: !ENV '${DB_PASS}'
-      - mariadb_database: !ENV '${DB_NAME:appdb}'
-      - mariadb_root_password: !ENV '${DB_ROOT_PASS}'
+    oci:
+      environment:
+        - MARIADB_USER: !ENV '${DB_USER}'
+        - MARIADB_PASSWORD: !ENV '${DB_PASS}'
+        - MARIADB_DATABASE: !ENV '${DB_NAME:appdb}'
+        - MARIADB_ROOT_PASSWORD: !ENV '${DB_ROOT_PASS}'
+    options:
+      - container: 'args:--pull'
 volumes:
   appdata:
     device: ./appdata
