@@ -25,7 +25,7 @@
 .\"CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 .\"OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\"OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd March 04, 2026
+.Dd August 17, 2026
 .Dt DIRECTOR 1
 .Os
 .Sh NAME
@@ -98,7 +98,8 @@ An environment file specified by
 .Fl Fl env-file
 is loaded if it exists, otherwise it is ignored. This file is very useful for when you need to put some secrets or some dynamic values in your
 .Xr director-spec 5
-file but they should not be in it and probably not in a repository either.
+file but they should not be in it and probably not in a repository either. By default, this parameter is set to
+.Pa .env Ns "."
 .Pp
 .Bl -tag -width xxx
 .It Cm up Oo Fl Fl json Oc Oo Fl Fl overwrite Oc Oo Fl Fl quiet Oc Oo Fl Fl file Ar file Oc Oo Fl Fl project Ar name Oc
@@ -283,6 +284,7 @@ Configuration file.
 .It Ev DIRECTOR_PROJECT
 Project name.
 .El
+.Pp
 .Sh SEE ALSO
 .Xr appjail 1
 .Xr director-spec 5
