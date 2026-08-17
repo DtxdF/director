@@ -394,6 +394,7 @@ will be replaced with the value stored in the
 .Ev DB_PASSWORD
 environment variable.
 .Sh EXAMPLES
+.Ss Basic example
 Using AppJail Director is a three-step process:
 .Bl -enum
 .It
@@ -408,6 +409,7 @@ so they can be run together in an isolated environment.
 Lastly, run
 .Li appjail-director up
 and Director will start and run your entire app.
+.El
 .Pp
 A Director file looks like this:
 .Pp
@@ -436,7 +438,51 @@ services:
       - expose: '8080:80'
       - container: 'args:--pull'
 .Ed
-.El
+.Ss Environment variables
+You can use environment variables within the Director file:
+.Pp
+.Sy appjail-director.yml Ns ":"
+.Pp
+.Bd -literal -compact -offset Ds
+options:
+  - virtualnet: ':<random> default'
+  - nat:
+services:
+  web:
+    makejail: Makejail
+    options:
+      - expose: 5000
+    volumes:
+      - appdata: /app/data
+  db:
+    name: mariadb
+    makejail: gh+AppJail-makejails/mariadb
+    oci:
+      environment:
+        - MARIADB_USER: !ENV '${DB_USER}'
+        - MARIADB_PASSWORD: !ENV '${DB_PASS}'
+        - MARIADB_DATABASE: !ENV '${DB_NAME:appdb}'
+        - MARIADB_ROOT_PASSWORD: !ENV '${DB_ROOT_PASS}'
+    options:
+      - container: 'args:--pull'
+volumes:
+  appdata:
+    device: ./appdata
+.Ed
+.Pp
+Instead of setting each environment variable from the command line, you can use a
+.Pa .env
+file:
+.Pp
+.Sy .env Ns ":"
+.Pp
+.Bd -literal -compact -offset Ds
+DIRECTOR_PROJECT=myapp
+DB_USER=example-user
+DB_PASS=my_cool_secret
+DB_NAME=appdb
+DB_ROOT_PASS=my-secret-pw
+.Ed
 .Sh SEE ALSO
 .Xr appjail 1
 .Xr director 1
