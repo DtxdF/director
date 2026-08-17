@@ -25,7 +25,7 @@
 .\"CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 .\"OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\"OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd July 14, 2026
+.Dd August 17, 2026
 .Dt DIRECTOR-SPEC 5
 .Os
 .Sh NAME
@@ -383,6 +383,16 @@ It has the same effect as
 .Sy owner Ns ,
 but for the device group.
 .El
+.Sh ENVIRONMENT
+Instead of specifying values in a
+.Xr director-spec 5
+file, you can use environment variables as values by specifying the
+.Li !ENV
+tag. For example,
+.Li !ENV '${DB_PASSWORD}'
+will be replaced with the value stored in the
+.Ev DB_PASSWORD
+environment variable.
 .Sh SEE ALSO
 .Xr appjail 1
 .Xr director 1
