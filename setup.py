@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = "0.18.0"
+VERSION = "0.18.1"
 VERSION_SUFFIX = os.getenv("DIRECTOR_VERSION_SUFFIX")
 if VERSION_SUFFIX is not None:
     VERSION = f"{VERSION}{VERSION_SUFFIX}"
